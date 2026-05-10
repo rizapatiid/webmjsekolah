@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
 -- Data Pengguna dari Screenshot
 INSERT INTO users (id, username, password, role) VALUES 
 (1, 'admin', '0192023a7bbd73250516f069df18b500', 'admin'),
-(6, 'P098765432', '92afb435ceb16630e9827f54330c59c9', 'guru'),
-(7, 'IKP8765678', 'bcd724d15cde8c47650fda962968f102', 'siswa');
+(6, 'P098765432', '827ccb0eea8a706c4c34a16891f84e7b', 'guru'),
+(7, 'IKP8765678', '827ccb0eea8a706c4c34a16891f84e7b', 'siswa');
 
 -- 2. Tabel Guru
 CREATE TABLE IF NOT EXISTS guru (
