@@ -1,0 +1,12 @@
+# Database & Config
+config/db.php_local
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

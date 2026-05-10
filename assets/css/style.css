@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #1e293b;     /* Deep Slate / Navy - Sangat Profesional */
+    --secondary-color: #0f172a;   /* Darker Slate untuk gradasi */
+    --accent-color: #3b82f6;      /* Calm Blue untuk tombol/aksi utama */
+    --success-color: #10b981;     /* Emerald Green yang lembut */
+    --dark-color: #1e293b;
+    --light-color: #f8fafc;       /* Off-white */
+    --bg-color: #f1f5f9;          /* Background abu-abu lembut */
+    --text-color: #334155;        /* Teks gelap yang tidak menyakiti mata */
+    --card-bg: #ffffff;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Navbar Styling */
+.navbar {
+    background: linear-gradient(180deg, var(--secondary-color), var(--primary-color)) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 1rem 0;
+}
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0.5px;
+}
+.nav-link {
+    font-weight: 500;
+    transition: all 0.3s ease;
+    padding: 0.5rem 1rem !important;
+    border-radius: 6px;
+    margin: 0 0.2rem;
+}
+.nav-link:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateX(4px); /* Efek slide ringan khas dashboard modern */
+}
+
+/* Card Styling */
+.card {
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Container & Table */
+.container.bg-white, .container-fluid.bg-white {
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    padding: 1.2rem !important; /* Smaller padding for mobile */
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 992px) {
+    .container.bg-white, .container-fluid.bg-white {
+        padding: 2rem !important;
+        margin-bottom: 2rem;
+    }
+}
+
+.table-responsive {
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    color: var(--text-color);
+}
+.table thead th {
+    background-color: #f8fafc !important; /* Header abu terang profesional */
+    color: #475569;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1rem;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+.table thead th:first-child {
+    border-top-left-radius: 8px;
+}
+.table thead th:last-child {
+    border-top-right-radius: 8px;
+}
+.table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+.table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    transition: all 0.2s ease;
+}
+.btn-primary {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+.btn-primary:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+}
+
+/* Forms */
+.form-control, .form-select {
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    border: 1px solid #cbd5e1;
+    color: var(--text-color);
+    transition: all 0.2s ease;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+label {
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent-color);
+}
+.dashboard-card.siswa { border-left-color: var(--accent-color); }
+.dashboard-card.guru { border-left-color: var(--success-color); }
+.dashboard-card.mapel { border-left-color: #8b5cf6; } /* Soft Purple */
+
+/* Login */
+.login-card {
+    background: white;
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 450px;
+}
+.login-card h3 {
+    font-weight: 700;
+    color: var(--dark-color);
+    margin-bottom: 2rem;
+}
