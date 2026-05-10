@@ -16,36 +16,44 @@ if (isset($_POST['login'])) {
     $password_raw = $_POST['password'];
     $password_md5 = md5($password_raw);
 
-    // 1. Check existing account
+    // 1. Check existing account in users table (Lowercase table names for Linux compatibility)
     $result = $conn->query("SELECT * FROM users WHERE username='$username' AND password='$password_md5'");
 
-    if ($result->num_rows > 0) {
+    if ($result && $result->num_rows > 0) {
         $_SESSION['user'] = $result->fetch_assoc();
         header("Location: pages/dashboard.php");
         exit;
     } else {
         // 2. If not found, check if it's a Guru or Siswa trying to login with default password '12345'
         if ($password_raw === '12345') {
-            // Check Guru
+            // Check Guru (Ensure lowercase table name 'guru')
             $check_guru = $conn->query("SELECT * FROM guru WHERE nip='$username'");
-            if ($check_guru->num_rows > 0) {
-                // Auto create Guru account
+            if ($check_guru && $check_guru->num_rows > 0) {
+                // Auto create Guru account if not exists
                 $conn->query("INSERT INTO users (username, password, role) VALUES ('$username', '$password_md5', 'guru')");
-                $new_user = $conn->query("SELECT * FROM users WHERE username='$username'")->fetch_assoc();
-                $_SESSION['user'] = $new_user;
-                header("Location: pages/dashboard.php");
-                exit;
+                
+                // Fetch the newly created user
+                $new_res = $conn->query("SELECT * FROM users WHERE username='$username'");
+                if ($new_res && $new_res->num_rows > 0) {
+                    $_SESSION['user'] = $new_res->fetch_assoc();
+                    header("Location: pages/dashboard.php");
+                    exit;
+                }
             }
 
-            // Check Siswa
+            // Check Siswa (Ensure lowercase table name 'siswa')
             $check_siswa = $conn->query("SELECT * FROM siswa WHERE nis='$username'");
-            if ($check_siswa->num_rows > 0) {
-                // Auto create Siswa account
+            if ($check_siswa && $check_siswa->num_rows > 0) {
+                // Auto create Siswa account if not exists
                 $conn->query("INSERT INTO users (username, password, role) VALUES ('$username', '$password_md5', 'siswa')");
-                $new_user = $conn->query("SELECT * FROM users WHERE username='$username'")->fetch_assoc();
-                $_SESSION['user'] = $new_user;
-                header("Location: pages/dashboard.php");
-                exit;
+                
+                // Fetch the newly created user
+                $new_res = $conn->query("SELECT * FROM users WHERE username='$username'");
+                if ($new_res && $new_res->num_rows > 0) {
+                    $_SESSION['user'] = $new_res->fetch_assoc();
+                    header("Location: pages/dashboard.php");
+                    exit;
+                }
             }
         }
         $error = "Username atau password salah!";
