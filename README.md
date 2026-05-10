@@ -108,6 +108,8 @@ sekolah_php/
 
 ## 🔑 Hak Akses Pengguna
 
+Coba Demo : https://websekolahriza.unaux.com/
+
 | Role | Username | Password | Deskripsi Akses |
 | :--- | :--- | :--- | :--- |
 | **ADMIN** | `admin` | `admin123` | Akses penuh ke seluruh menu dan sistem. |
