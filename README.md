@@ -108,13 +108,27 @@ sekolah_php/
 
 ## 🔑 Hak Akses Pengguna
 
-Coba Demo : https://websekolahriza.unaux.com/
 
 | Role | Username | Password | Deskripsi Akses |
 | :--- | :--- | :--- | :--- |
 | **ADMIN** | `admin` | `admin123` | Akses penuh ke seluruh menu dan sistem. |
 | **PENGAJAR** | [NIP GURU] | `12345` | Akses manajemen nilai dan daftar siswa. |
 | **SISWA** | [NIS SISWA] | `12345` | Akses lihat dan cetak transkrip nilai pribadi. |
+
+---
+
+# DEMO
+Coba Demo : https://websekolahriza.unaux.com/
+username admin: admin
+username guru: P098765432
+username siswa: IKP8765678 
+
+password nya 
+admin123 (untuk admin) 
+siswa123 (untuk siswa)
+guru123 (untuk guru)
+
+
 
 ---
 
