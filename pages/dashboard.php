@@ -196,8 +196,7 @@ include '../layouts/header.php';
                 Halo, <?php echo htmlspecialchars(ucfirst($user_display_name)); ?>! 👋
             </h2>
             <p class="mb-0 fs-6 text-white text-opacity-75" style="max-width: 600px; line-height: 1.6;">
-                Selamat datang di portal utama SIAKAD. Pantau perkembangan akademik sekolah, analisis data siswa secara real-time, dan kelola manajemen dengan efisien.
-            </p>
+                Selamat datang di portal utama SIAKAD. Pantau perkembangan akademik <?php echo strtolower(LBL_INSTANSI); ?>, analisis data <?php echo strtolower(LBL_SISWA); ?> secara real-time, dan kelola manajemen dengan efisien.</p>
         </div>
     </div>
 
@@ -211,7 +210,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($siswa_count); ?></h3>
-                        <p>Total Siswa Aktif</p>
+                        <p>Total <?php echo LBL_SISWA; ?> Aktif</p>
                     </div>
                 </div>
             </div>
@@ -222,7 +221,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($guru_count); ?></h3>
-                        <p>Tenaga Pendidik</p>
+                        <p>Tenaga Pendidik (<?php echo LBL_GURU; ?>)</p>
                     </div>
                 </div>
             </div>
@@ -233,7 +232,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($mapel_count); ?></h3>
-                        <p>Mata Pelajaran</p>
+                        <p><?php echo LBL_MAPEL; ?></p>
                     </div>
                 </div>
             </div>
@@ -245,7 +244,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo $wali_kelas ? $wali_kelas['nama_kelas'] : 'N/A'; ?></h3>
-                        <p>Wali Kelas: <?php echo $total_siswa_wali; ?> Siswa</p>
+                        <p>Wali <?php echo LBL_KELAS; ?>: <?php echo $total_siswa_wali; ?> <?php echo LBL_SISWA; ?></p>
                     </div>
                 </div>
             </div>
@@ -256,7 +255,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo $mapel_guru; ?></h3>
-                        <p>Mata Pelajaran Diampu</p>
+                        <p><?php echo LBL_MAPEL; ?> Diampu</p>
                     </div>
                 </div>
             </div>
@@ -268,7 +267,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo $kelas_siswa ?: 'Belum Ada'; ?></h3>
-                        <p>Kelas Saat Ini</p>
+                        <p><?php echo LBL_KELAS; ?> Saat Ini</p>
                     </div>
                 </div>
             </div>
@@ -279,7 +278,7 @@ include '../layouts/header.php';
                     </div>
                     <div class="stat-info">
                         <h3><?php echo $mapel_count; ?></h3>
-                        <p>Jumlah Mata Pelajaran</p>
+                        <p>Jumlah <?php echo LBL_MAPEL; ?></p>
                     </div>
                 </div>
             </div>
@@ -309,14 +308,14 @@ include '../layouts/header.php';
                         <div class="col-6">
                             <a href="siswa.php?action=add" class="quick-action-card">
                                 <div class="quick-icon" style="color: #3b82f6;"><i class='bx bx-user-plus'></i></div>
-                                <h6 class="quick-title">Siswa Baru</h6>
-                                <p class="quick-desc">Daftar siswa</p>
+                                <h6 class="quick-title"><?php echo LBL_SISWA; ?> Baru</h6>
+                                <p class="quick-desc">Daftar <?php echo strtolower(LBL_SISWA); ?></p>
                             </a>
                         </div>
                         <div class="col-6">
                             <a href="guru.php?action=add" class="quick-action-card">
                                 <div class="quick-icon" style="color: #10b981;"><i class='bx bx-user-voice'></i></div>
-                                <h6 class="quick-title">Guru Baru</h6>
+                                <h6 class="quick-title"><?php echo LBL_GURU; ?> Baru</h6>
                                 <p class="quick-desc">Daftar staf</p>
                             </a>
                         </div>
@@ -330,7 +329,7 @@ include '../layouts/header.php';
                         <div class="col-6">
                             <a href="mapel.php" class="quick-action-card">
                                 <div class="quick-icon" style="color: #8b5cf6;"><i class='bx bx-book-add'></i></div>
-                                <h6 class="quick-title">Mapel Baru</h6>
+                                <h6 class="quick-title">Tambah <?php echo LBL_MAPEL; ?></h6>
                                 <p class="quick-desc">Kurikulum</p>
                             </a>
                         </div>
@@ -342,7 +341,7 @@ include '../layouts/header.php';
         <!-- Bottom Section: Latest Data Table -->
         <div class="dashboard-panel mb-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="panel-title mb-0"><i class='bx bx-history text-success fs-4'></i> Siswa Terdaftar Baru</h5>
+                <h5 class="panel-title mb-0"><i class='bx bx-history text-success fs-4'></i> <?php echo LBL_SISWA; ?> Terdaftar Baru</h5>
                 <a href="siswa.php" class="btn btn-sm btn-primary fw-medium px-3 rounded-pill">Lihat Semua Data</a>
             </div>
             <div class="table-responsive">
@@ -350,8 +349,8 @@ include '../layouts/header.php';
                     <thead>
                         <tr>
                             <th>NIS</th>
-                            <th>Nama Siswa</th>
-                            <th>Kelas</th>
+                            <th>Nama <?php echo LBL_SISWA; ?></th>
+                            <th><?php echo LBL_KELAS; ?></th>
                             <th>Jurusan</th>
                             <th>Status</th>
                         </tr>
@@ -375,7 +374,7 @@ include '../layouts/header.php';
                             </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" class="text-center text-muted py-4"><i class='bx bx-info-circle me-2'></i>Belum ada data siswa yang terdaftar.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-4"><i class='bx bx-info-circle me-2'></i>Belum ada data <?php echo strtolower(LBL_SISWA); ?> yang terdaftar.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -385,7 +384,7 @@ include '../layouts/header.php';
         <div class="row g-4 mb-4">
             <div class="col-md-6">
                 <div class="dashboard-panel">
-                    <h5 class="panel-title"><i class='bx bx-book-open text-primary fs-4'></i> Mata Pelajaran Diampu</h5>
+                    <h5 class="panel-title"><i class='bx bx-book-open text-primary fs-4'></i> <?php echo LBL_MAPEL; ?> Diampu</h5>
                     <div class="list-group list-group-flush mt-3">
                         <?php 
                         $my_mapel = $conn->query("SELECT * FROM mapel WHERE nip_guru = '$username'");
@@ -400,14 +399,14 @@ include '../layouts/header.php';
                                 </div>
                             <?php endwhile;
                         else: ?>
-                            <p class="text-muted py-3">Anda belum mengampu mata pelajaran apapun.</p>
+                            <p class="text-muted py-3">Anda belum mengampu <?php echo strtolower(LBL_MAPEL); ?> apapun.</p>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="dashboard-panel">
-                    <h5 class="panel-title"><i class='bx bx-group text-success fs-4'></i> Siswa Wali Kelas</h5>
+                    <h5 class="panel-title"><i class='bx bx-group text-success fs-4'></i> <?php echo LBL_SISWA; ?> Perwalian</h5>
                     <?php if ($wali_kelas): ?>
                         <div class="table-responsive mt-3" style="max-height: 300px; overflow-y: auto;">
                             <table class="table table-sm align-middle">
@@ -432,7 +431,7 @@ include '../layouts/header.php';
                             </table>
                         </div>
                     <?php else: ?>
-                        <p class="text-muted py-3">Anda bukan Wali Kelas dari kelas manapun.</p>
+                        <p class="text-muted py-3">Anda bukan Wali <?php echo LBL_KELAS; ?> dari <?php echo strtolower(LBL_KELAS); ?> manapun.</p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -441,7 +440,7 @@ include '../layouts/header.php';
         <div class="row g-4 mb-4">
             <div class="col-md-7">
                 <div class="dashboard-panel">
-                    <h5 class="panel-title"><i class='bx bx-book-content text-primary fs-4'></i> Mata Pelajaran Kelas</h5>
+                    <h5 class="panel-title"><i class='bx bx-book-content text-primary fs-4'></i> <?php echo LBL_MAPEL; ?> <?php echo LBL_KELAS; ?></h5>
                     <div class="row g-3 mt-1">
                         <?php 
                         if ($kelas_siswa):
@@ -459,7 +458,7 @@ include '../layouts/header.php';
                                 <?php endwhile;
                             endif;
                         else: ?>
-                            <div class="col-12"><p class="text-muted">Data kelas belum tersedia.</p></div>
+                            <div class="col-12"><p class="text-muted">Data <?php echo strtolower(LBL_KELAS); ?> belum tersedia.</p></div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -512,7 +511,7 @@ document.addEventListener("DOMContentLoaded", function() {
         data: {
             labels: chartLabels,
             datasets: [{
-                label: 'Jumlah Siswa',
+                label: 'Jumlah <?php echo LBL_SISWA; ?>',
                 data: chartData,
                 backgroundColor: 'rgba(59, 130, 246, 0.8)',
                 borderColor: 'rgba(59, 130, 246, 1)',

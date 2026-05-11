@@ -3,7 +3,12 @@
  * Copyright 2026 RIZAPATIID - PROJECT
  * Email : rizapatiid@gmail.com
  */
-$current_page = basename($_SERVER['PHP_SELF']); ?>
+$current_page = basename($_SERVER['PHP_SELF']); 
+
+$nav_pengaturan_res = $conn->query("SELECT logo FROM pengaturan_sekolah WHERE id=1");
+$nav_pengaturan = $nav_pengaturan_res ? $nav_pengaturan_res->fetch_assoc() : null;
+$nav_logo = $nav_pengaturan['logo'] ?? '';
+?>
 <style>
 @media (min-width: 992px) {
     .sidebar-nav {
@@ -56,7 +61,12 @@ $current_page = basename($_SERVER['PHP_SELF']); ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sidebar-nav mb-4 mb-lg-0 sticky-top">
   <div class="container-fluid flex-lg-column align-items-stretch h-100">
     <a class="navbar-brand d-flex align-items-center justify-content-center" href="dashboard.php">
-        <i class='bx bxs-graduation me-2 fs-2'></i> <span class="fw-bold fs-4">SIAKAD</span>
+        <?php if (!empty($nav_logo) && file_exists('../' . $nav_logo)): ?>
+            <img src="../<?php echo $nav_logo; ?>" alt="Logo Sekolah" class="me-2" style="max-height: 35px; width: auto; object-fit: contain; border-radius: 4px;">
+        <?php else: ?>
+            <i class='bx bxs-graduation me-2 fs-2'></i>
+        <?php endif; ?>
+        <span class="fw-bold fs-4">SIAKAD</span>
     </a>
     <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
@@ -69,16 +79,19 @@ $current_page = basename($_SERVER['PHP_SELF']); ?>
         
         <?php if ($_SESSION['user']['role'] == 'admin'): ?>
             <li class="nav-item">
-              <a class="nav-link <?php echo $current_page == 'siswa.php' ? 'active' : ''; ?>" href="siswa.php"><i class='bx bxs-user-detail me-2'></i> Data Siswa</a>
+              <a class="nav-link <?php echo $current_page == 'siswa.php' ? 'active' : ''; ?>" href="siswa.php"><i class='bx bxs-user-detail me-2'></i> Data <?php echo LBL_SISWA; ?></a>
             </li>
             <li class="nav-item">
-              <a class="nav-link <?php echo $current_page == 'guru.php' ? 'active' : ''; ?>" href="guru.php"><i class='bx bxs-chalkboard me-2'></i> Data Guru</a>
+              <a class="nav-link <?php echo $current_page == 'guru.php' ? 'active' : ''; ?>" href="guru.php"><i class='bx bxs-chalkboard me-2'></i> Data <?php echo LBL_GURU; ?></a>
             </li>
             <li class="nav-item">
-              <a class="nav-link <?php echo $current_page == 'kelas.php' ? 'active' : ''; ?>" href="kelas.php"><i class='bx bxs-building-house me-2'></i> Data Kelas</a>
+              <a class="nav-link <?php echo $current_page == 'kelas.php' ? 'active' : ''; ?>" href="kelas.php"><i class='bx bxs-building-house me-2'></i> Data <?php echo LBL_KELAS; ?></a>
             </li>
             <li class="nav-item">
-              <a class="nav-link <?php echo $current_page == 'mapel.php' ? 'active' : ''; ?>" href="mapel.php"><i class='bx bxs-book-alt me-2'></i> Mata Pelajaran</a>
+              <a class="nav-link <?php echo $current_page == 'mapel.php' ? 'active' : ''; ?>" href="mapel.php"><i class='bx bxs-book-alt me-2'></i> <?php echo LBL_MAPEL; ?></a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link <?php echo $current_page == 'jurusan.php' ? 'active' : ''; ?>" href="jurusan.php"><i class='bx bxs-book-bookmark me-2'></i> Manajemen Jurusan</a>
             </li>
             <li class="nav-item">
               <a class="nav-link <?php echo $current_page == 'nilai.php' ? 'active' : ''; ?>" href="nilai.php"><i class='bx bxs-bar-chart-alt-2 me-2'></i> Nilai</a>
@@ -87,11 +100,11 @@ $current_page = basename($_SERVER['PHP_SELF']); ?>
               <a class="nav-link <?php echo $current_page == 'admin.php' ? 'active' : ''; ?>" href="admin.php"><i class='bx bxs-user-badge me-2'></i> Pengelola Pengguna</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link <?php echo $current_page == 'pengaturan.php' ? 'active' : ''; ?>" href="pengaturan.php"><i class='bx bx-cog me-2'></i> Pengaturan Sekolah</a>
+              <a class="nav-link <?php echo $current_page == 'pengaturan.php' ? 'active' : ''; ?>" href="pengaturan.php"><i class='bx bx-cog me-2'></i> Pengaturan Instansi</a>
             </li>
         <?php elseif ($_SESSION['user']['role'] == 'guru'): ?>
             <li class="nav-item">
-              <a class="nav-link <?php echo $current_page == 'kelas.php' ? 'active' : ''; ?>" href="kelas.php"><i class='bx bxs-building-house me-2'></i> Kelas & Siswa</a>
+              <a class="nav-link <?php echo $current_page == 'kelas.php' ? 'active' : ''; ?>" href="kelas.php"><i class='bx bxs-building-house me-2'></i> <?php echo LBL_KELAS; ?> & <?php echo LBL_SISWA; ?></a>
             </li>
             <li class="nav-item">
               <a class="nav-link <?php echo $current_page == 'nilai.php' ? 'active' : ''; ?>" href="nilai.php"><i class='bx bxs-bar-chart-alt-2 me-2'></i> Input Nilai</a>

@@ -23,28 +23,37 @@ $username = $user['username'];
 
 $action = $_GET['action'] ?? 'list';
 
-// Fix database column lengths if needed (to prevent truncation like "XI INFORMATIKA" becoming "X INFORMA")
+// Fix database columns and lengths
 $conn->query("ALTER TABLE siswa MODIFY COLUMN kelas VARCHAR(50)");
 $conn->query("ALTER TABLE siswa MODIFY COLUMN jurusan VARCHAR(100)");
+$conn->query("ALTER TABLE siswa ADD COLUMN IF NOT EXISTS tahun_masuk VARCHAR(10) AFTER semester");
+$conn->query("ALTER TABLE siswa ADD COLUMN IF NOT EXISTS tempat_lahir VARCHAR(100) AFTER tahun_masuk");
+$conn->query("ALTER TABLE siswa ADD COLUMN IF NOT EXISTS tanggal_lahir DATE AFTER tempat_lahir");
+$label_id = LBL_INSTANSI == 'Kampus' ? 'NIM' : 'NIS';
 
 // Load Pengaturan Sekolah
 $pengaturan_query = $conn->query("SELECT * FROM pengaturan_sekolah WHERE id=1");
 $pengaturan = $pengaturan_query->fetch_assoc();
-$daftar_jurusan = explode(',', $pengaturan['daftar_jurusan']);
-array_walk($daftar_jurusan, 'trim');
+
+// Load Daftar Jurusan dari tabel jurusan
+$jurusan_res = $conn->query("SELECT nama_jurusan FROM jurusan ORDER BY nama_jurusan ASC");
+$daftar_jurusan = [];
+while($j_row = $jurusan_res->fetch_assoc()) {
+    $daftar_jurusan[] = $j_row['nama_jurusan'];
+}
 
 // Load Daftar Kelas
-$kelas_list_res = $conn->query("SELECT nama_kelas FROM kelas ORDER BY nama_kelas ASC");
+$kelas_list_res = $conn->query("SELECT nama_kelas, jurusan FROM kelas ORDER BY nama_kelas ASC");
 $daftar_kelas = [];
 while($k_row = $kelas_list_res->fetch_assoc()) {
-    $daftar_kelas[] = $k_row['nama_kelas'];
+    $daftar_kelas[] = $k_row;
 }
 
 if ($action == 'delete' && isset($_GET['nis'])) {
     $nis = $conn->real_escape_string($_GET['nis']);
     $conn->query("DELETE FROM users WHERE username='$nis' AND role='siswa'");
     $conn->query("DELETE FROM siswa WHERE nis='$nis'");
-    $_SESSION['success'] = 'Data Siswa Berhasil Dihapus!';
+    $_SESSION['success'] = 'Data ' . LBL_SISWA . ' Berhasil Dihapus!';
     header("Location: siswa.php");
     exit;
 }
@@ -60,6 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $status = $conn->real_escape_string($_POST['status'] ?? 'Aktif');
     $tahun_ajaran = $conn->real_escape_string($_POST['tahun_ajaran'] ?? $pengaturan['tahun_ajaran']);
     $semester = $conn->real_escape_string($_POST['semester'] ?? $pengaturan['semester']);
+    $tahun_masuk = $conn->real_escape_string($_POST['tahun_masuk']);
+    $tempat_lahir = $conn->real_escape_string($_POST['tempat_lahir']);
+    $tanggal_lahir = $conn->real_escape_string($_POST['tanggal_lahir']);
 
     $foto = '';
     if (isset($_FILES['foto']) && $_FILES['foto']['error'] == 0) {
@@ -78,19 +90,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if ($action == 'add') {
-        $query = "INSERT INTO siswa (nis, nama, kelas, jurusan, agama, alamat, no_hp, foto, status, tahun_ajaran, semester) 
-                  VALUES ('$nis', '$nama', '$kelas', '$jurusan', '$agama', '$alamat', '$no_hp', '$foto', '$status', '$tahun_ajaran', '$semester')";
+        $query = "INSERT INTO siswa (nis, nama, kelas, jurusan, agama, alamat, no_hp, foto, status, tahun_ajaran, semester, tahun_masuk, tempat_lahir, tanggal_lahir) 
+                  VALUES ('$nis', '$nama', '$kelas', '$jurusan', '$agama', '$alamat', '$no_hp', '$foto', '$status', '$tahun_ajaran', '$semester', '$tahun_masuk', '$tempat_lahir', '$tanggal_lahir')";
         if ($conn->query($query)) {
             // Create user for this student
             $conn->query("INSERT INTO users (username, password, role) VALUES ('$nis', MD5('12345'), 'siswa')");
-            $_SESSION['success'] = 'Data Siswa Berhasil Ditambahkan!';
+            $_SESSION['success'] = 'Data ' . LBL_SISWA . ' Berhasil Ditambahkan!';
         }
         header("Location: siswa.php");
         exit;
     } elseif ($action == 'edit') {
         $old_nis = $conn->real_escape_string($_POST['old_nis']);
         $query = "UPDATE siswa SET nis='$nis', nama='$nama', kelas='$kelas', jurusan='$jurusan', 
-                  agama='$agama', alamat='$alamat', no_hp='$no_hp', status='$status', tahun_ajaran='$tahun_ajaran', semester='$semester'";
+                  agama='$agama', alamat='$alamat', no_hp='$no_hp', status='$status', tahun_ajaran='$tahun_ajaran', semester='$semester',
+                  tahun_masuk='$tahun_masuk', tempat_lahir='$tempat_lahir', tanggal_lahir='$tanggal_lahir'";
         if ($foto != '') {
             $query .= ", foto='$foto'";
         }
@@ -100,14 +113,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($nis != $old_nis) {
                 $conn->query("UPDATE users SET username='$nis' WHERE username='$old_nis' AND role='siswa'");
             }
-            $_SESSION['success'] = 'Data Siswa Berhasil Diperbarui!';
+            $_SESSION['success'] = 'Data ' . LBL_SISWA . ' Berhasil Diperbarui!';
         }
         header("Location: siswa.php");
         exit;
     }
 }
 
-$page_title = 'Data Siswa';
+$page_title = 'Data ' . LBL_SISWA;
 include '../layouts/header.php';
 ?>
 <div class="container-fluid bg-transparent p-0">
@@ -115,15 +128,15 @@ include '../layouts/header.php';
         <!-- Header List -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-user-detail text-primary me-2'></i> Manajemen Data Siswa
+                <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-user-detail text-primary me-2'></i> Manajemen Data <?php echo LBL_SISWA; ?>
                 </h3>
-                <p class="text-muted mb-0">Kelola seluruh data siswa, kelas, jurusan, dan status keaktifan.</p>
+                <p class="text-muted mb-0">Kelola seluruh data <?php echo strtolower(LBL_SISWA); ?>, kelas, jurusan, dan status keaktifan.</p>
             </div>
             <a href="siswa.php?action=add" class="btn fw-bold rounded-3 px-4 shadow-sm text-white d-flex align-items-center justify-content-center"
                 style="background-color: #0f172a; border: none; transition: all 0.3s ease; height: 45px;"
                 onmouseover="this.style.backgroundColor='#3b82f6'; this.style.transform='translateY(-2px)'" 
                 onmouseout="this.style.backgroundColor='#0f172a'; this.style.transform='translateY(0)'">
-                <i class='bx bx-plus-circle me-2 fs-5'></i> Siswa Baru
+                <i class='bx bx-plus-circle me-2 fs-5'></i> <?php echo LBL_SISWA; ?> Baru
             </a>
         </div>
 
@@ -133,7 +146,7 @@ include '../layouts/header.php';
                 <table class="table table-hover align-middle datatable">
                     <thead class="table-light text-muted">
                         <tr>
-                            <th class="fw-semibold pb-3">Profil Siswa</th>
+                            <th class="fw-semibold pb-3">Profil <?php echo LBL_SISWA; ?></th>
                             <th class="fw-semibold pb-3">Data Akademik</th>
                             <th class="fw-semibold pb-3">Status</th>
                             <th class="fw-semibold pb-3 text-end">Aksi</th>
@@ -161,7 +174,7 @@ include '../layouts/header.php';
                                         <div>
                                             <span class="fw-bold text-dark d-block"
                                                 style="font-size: 0.95rem;"><?php echo $row['nama']; ?></span>
-                                            <small class="text-muted d-block mt-1">NIS: <span
+                                            <small class="text-muted d-block mt-1"><?php echo $label_id; ?>: <span
                                                     class="fw-medium text-secondary">#<?php echo $row['nis']; ?></span> &bull;
                                                 <i class='bx bx-phone'></i> <?php echo $row['no_hp']; ?></small>
                                         </div>
@@ -254,11 +267,11 @@ include '../layouts/header.php';
                             </div>
                         </div>
 
-                        <h5 class="fw-bold text-dark mb-1" id="detailNama">Nama Lengkap Siswa</h5>
+                        <h5 class="fw-bold text-dark mb-1" id="detailNama">Nama Lengkap <?php echo LBL_SISWA; ?></h5>
                         <p class="text-muted mb-2" style="font-size: 0.85rem;">
-                            <i class='bx bx-id-card me-1'></i> NIS: <span class="fw-bold text-dark"
+                            <i class='bx bx-id-card me-1'></i> <?php echo $label_id; ?>: <span class="fw-bold text-dark"
                                 id="detailNis">12345</span>
-                            <button class="btn btn-link p-0 ms-1 text-primary" onclick="copyNis()" title="Salin NIS">
+                            <button class="btn btn-link p-0 ms-1 text-primary" onclick="copyNis()" title="Salin <?php echo $label_id; ?>">
                                 <i class='bx bx-copy'></i>
                             </button>
                         </p>
@@ -288,6 +301,22 @@ include '../layouts/header.php';
                                             class='bx bx-moon text-primary me-1'></i> Agama</small>
                                     <span class="fw-medium text-dark" style="font-size: 0.85rem;"
                                         id="detailAgama">Islam</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded-4 border border-light-subtle h-100 transition-hover">
+                                    <small class="text-muted d-block mb-0" style="font-size: 0.75rem;"><i
+                                            class='bx bx-map text-primary me-1'></i> Tempat/Tgl Lahir</small>
+                                    <span class="fw-medium text-dark" style="font-size: 0.85rem;"
+                                        id="detailTTL">-</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2 bg-light rounded-4 border border-light-subtle h-100 transition-hover">
+                                    <small class="text-muted d-block mb-0" style="font-size: 0.75rem;"><i
+                                            class='bx bx-calendar-star text-primary me-1'></i> Tahun Masuk</small>
+                                    <span class="fw-medium text-dark" style="font-size: 0.85rem;"
+                                        id="detailTahunMasuk">-</span>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -330,6 +359,8 @@ include '../layouts/header.php';
                 document.getElementById('detailNoHp').innerText = data.no_hp;
                 document.getElementById('detailAlamat').innerText = data.alamat;
                 document.getElementById('detailAngkatan').innerText = data.tahun_ajaran + ' - ' + data.semester;
+                document.getElementById('detailTahunMasuk').innerText = data.tahun_masuk || '-';
+                document.getElementById('detailTTL').innerText = (data.tempat_lahir || '-') + ', ' + (data.tanggal_lahir || '-');
 
                 // Status Badge
                 const statusContainer = document.getElementById('detailStatus');
@@ -366,7 +397,7 @@ include '../layouts/header.php';
                         toast: true,
                         position: 'top-end',
                         icon: 'success',
-                        title: 'NIS berhasil disalin!',
+                        title: '<?php echo $label_id; ?> berhasil disalin!',
                         showConfirmButton: false,
                         timer: 2000
                     });
@@ -386,7 +417,7 @@ include '../layouts/header.php';
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-edit text-primary me-2'></i>
-                    <?php echo $action == 'add' ? 'Registrasi Siswa Baru' : 'Perbarui Data Siswa'; ?></h3>
+                    <?php echo $action == 'add' ? 'Registrasi ' . LBL_SISWA . ' Baru' : 'Perbarui Data ' . LBL_SISWA; ?></h3>
                 <p class="text-muted mb-0">Lengkapi formulir di bawah ini dengan informasi yang valid.</p>
             </div>
             <a href="siswa.php" class="btn btn-outline-secondary fw-medium rounded-pill px-4 shadow-sm">
@@ -403,10 +434,10 @@ include '../layouts/header.php';
 
                 <!-- Section: Informasi Pribadi -->
                 <h5 class="fw-bold text-dark mb-4 pb-2 border-bottom"><i class='bx bx-id-card text-primary me-2'></i>
-                    Informasi Pribadi Siswa</h5>
-                <div class="row g-4 mb-5">
+                    Informasi Pribadi <?php echo LBL_SISWA; ?></h5>
+                <div class="row g-4 mb-4">
                     <div class="col-md-6 col-lg-4">
-                        <label class="form-label fw-medium text-muted">Nomor Induk Siswa (NIS)</label>
+                        <label class="form-label fw-medium text-muted">Nomor Induk <?php echo LBL_SISWA; ?> (<?php echo $label_id; ?>)</label>
                         <input type="text" name="nis"
                             class="form-control <?php echo $action == 'edit' ? 'bg-light' : ''; ?>"
                             value="<?php echo $row['nis'] ?? ''; ?>" required <?php echo $action == 'edit' ? 'readonly' : ''; ?>>
@@ -420,6 +451,24 @@ include '../layouts/header.php';
                         <input type="text" name="nama" class="form-control" value="<?php echo $row['nama'] ?? ''; ?>"
                             required>
                     </div>
+                </div>
+
+                <div class="row g-4 mb-5">
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Tempat Lahir</label>
+                        <input type="text" name="tempat_lahir" class="form-control" value="<?php echo $row['tempat_lahir'] ?? ''; ?>" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Tanggal Lahir</label>
+                        <input type="date" name="tanggal_lahir" class="form-control" value="<?php echo $row['tanggal_lahir'] ?? ''; ?>" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Tahun Masuk</label>
+                        <input type="text" name="tahun_masuk" class="form-control" placeholder="Contoh: 2022" value="<?php echo $row['tahun_masuk'] ?? ''; ?>" required>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-5">
                     <div class="col-md-6 col-lg-4">
                         <label class="form-label fw-medium text-muted">Agama</label>
                         <select name="agama" class="form-select" required>
@@ -459,22 +508,22 @@ include '../layouts/header.php';
                     Data Akademik & Penempatan</h5>
                 <div class="row g-4 mb-5">
                     <div class="col-md-4">
-                        <label class="form-label fw-medium text-muted">Kelas</label>
-                        <select name="kelas" class="form-select" required>
-                            <option value="">-- Pilih Kelas --</option>
-                            <?php foreach ($daftar_kelas as $k_item): ?>
-                                <option value="<?php echo htmlspecialchars($k_item); ?>" <?php echo (isset($row['kelas']) && $row['kelas'] == $k_item) ? 'selected' : ''; ?>><?php echo htmlspecialchars($k_item); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
                         <label class="form-label fw-medium text-muted">Jurusan</label>
-                        <select name="jurusan" class="form-select" required>
+                        <select name="jurusan" id="selectJurusanSiswa" class="form-select" required onchange="filterKelasSiswa()">
                             <option value="">-- Pilih Jurusan --</option>
                             <?php foreach ($daftar_jurusan as $j): ?>
                                 <?php if ($j != ''): ?>
                                     <option value="<?php echo htmlspecialchars($j); ?>" <?php echo (isset($row['jurusan']) && $row['jurusan'] == $j) ? 'selected' : ''; ?>><?php echo htmlspecialchars($j); ?></option>
                                 <?php endif; ?>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Kelas</label>
+                        <select name="kelas" id="selectKelasSiswa" class="form-select" required>
+                            <option value="">-- Pilih Kelas --</option>
+                            <?php foreach ($daftar_kelas as $k_item): ?>
+                                <option value="<?php echo htmlspecialchars($k_item['nama_kelas']); ?>" data-jurusan="<?php echo htmlspecialchars($k_item['jurusan'] ?? ''); ?>" <?php echo (isset($row['kelas']) && $row['kelas'] == $k_item['nama_kelas']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($k_item['nama_kelas']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -506,12 +555,46 @@ include '../layouts/header.php';
                         style="background-color: #0f172a; transition: all 0.3s;"
                         onmouseover="this.style.backgroundColor='#3b82f6'"
                         onmouseout="this.style.backgroundColor='#0f172a'">
-                        <i class='bx bx-save me-1'></i> Simpan Data Siswa
+                        <i class='bx bx-save me-1'></i> Simpan Data <?php echo LBL_SISWA; ?>
                     </button>
                 </div>
 
             </div>
         </form>
+
+        <script>
+        function filterKelasSiswa() {
+            var jurusan = document.getElementById('selectJurusanSiswa').value;
+            var selectKelas = document.getElementById('selectKelasSiswa');
+            var options = selectKelas.options;
+            
+            selectKelas.disabled = (jurusan === '');
+            var validSelection = false;
+
+            for (var i = 1; i < options.length; i++) {
+                var optJurusan = options[i].getAttribute('data-jurusan');
+                if (optJurusan === jurusan || jurusan === '') {
+                    options[i].style.display = '';
+                    options[i].disabled = false;
+                    if(options[i].selected) validSelection = true;
+                } else {
+                    options[i].style.display = 'none';
+                    options[i].disabled = true;
+                    if(options[i].selected) options[i].selected = false;
+                }
+            }
+            
+            if(!validSelection && jurusan !== '') {
+                selectKelas.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('selectJurusanSiswa')) {
+                filterKelasSiswa();
+            }
+        });
+        </script>
     <?php endif; ?>
 </div>
 

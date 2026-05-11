@@ -12,9 +12,16 @@ $jurusan = $_GET['jurusan'] ?? '';
 $kelas = $_GET['kelas'] ?? '';
 $mapel_id = $_GET['mapel'] ?? '';
 
-if (!$tahun || !$semester || !$jurusan || !$kelas || !$mapel_id) {
+if (!$tahun || !$jurusan || !$kelas || !$mapel_id) {
     echo "Lengkapi filter terlebih dahulu.";
     exit;
+}
+
+// Infer semester from kelas if not provided
+if (!$semester) {
+    preg_match('/\d+/', $kelas, $matches);
+    $sem_num = $matches[0] ?? '';
+    if ($sem_num) $semester = "Semester " . $sem_num;
 }
 
 // Ambil data sekolah
@@ -31,8 +38,7 @@ $query = "SELECT n.*, s.nama as nama_siswa, s.nis
           JOIN siswa s ON n.nis_siswa = s.nis 
           WHERE s.kelas = '$kelas' 
           AND s.jurusan = '$jurusan' 
-          AND s.tahun_ajaran = '$tahun' 
-          AND s.semester = '$semester'
+          AND n.tahun_ajaran = '$tahun' 
           AND n.id_mapel = $mapel_id
           ORDER BY s.nama ASC";
 $result = $conn->query($query);
@@ -47,111 +53,156 @@ $nip_guru = $guru['nip'] ?? '...................................';
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Daftar Nilai Mapel - <?php echo $mapel['nama_mapel']; ?></title>
+    <title>Rekap Nilai Mapel - <?php echo $mapel['nama_mapel']; ?></title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; margin: 0; padding: 20px; background: #f4f7f6; }
-        .page { background: white; padding: 40px; width: 210mm; min-height: 297mm; margin: auto; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 8px; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #0f172a; padding-bottom: 15px; }
-        .header h2 { margin: 0; color: #0f172a; text-transform: uppercase; font-size: 20px; }
-        .header p { margin: 5px 0; color: #64748b; }
+        body { font-family: 'Times New Roman', Times, serif; font-size: 12px; line-height: 1.4; color: #000; margin: 0; padding: 20px; background: #f8fafc; }
         
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
-        .info-item { display: flex; margin-bottom: 5px; }
-        .info-label { width: 100px; font-weight: bold; color: #475569; }
+        .page { 
+            width: 297mm; 
+            min-height: 210mm; 
+            padding: 15mm; 
+            margin: auto; 
+            background: white; 
+            border: 1px solid #e2e8f0; 
+            position: relative; 
+            box-sizing: border-box; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px 8px; text-align: center; }
-        th { background: #0f172a; color: white; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
-        tr:nth-child(even) { background-color: #f8fafc; }
-        .text-left { text-align: left; padding-left: 15px; }
-        .fw-bold { font-weight: bold; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 10px; }
-        .bg-success-lite { background: #dcfce7; color: #166534; }
-        .bg-danger-lite { background: #fee2e2; color: #991b1b; }
+        .page::before {
+            content: "";
+            position: absolute;
+            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border: 1px solid #cbd5e1;
+            pointer-events: none;
+            z-index: 10;
+        }
 
-        .no-print { text-align: center; margin-bottom: 20px; }
-        .btn-print { padding: 12px 25px; background: #0f172a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
-        .btn-print:hover { background: #3b82f6; transform: translateY(-2px); }
+        .ung-header { text-align: center; border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 25px; display: flex; align-items: center; gap: 20px; }
+        .ung-logo { width: 90px; height: auto; }
+        .ung-header-text { flex: 1; text-align: center; }
+        .ung-header h1 { font-size: 26px; margin: 0; font-weight: 900; color: #0f172a; line-height: 1.1; }
+        .ung-header h2 { font-size: 15px; margin: 5px 0 0; font-weight: 700; color: #334155; }
+        .ung-header p { font-size: 10px; margin: 5px 0 0; color: #64748b; }
+        
+        .ung-title { text-align: center; margin-bottom: 25px; }
+        .ung-title h3 { font-size: 18px; font-weight: 900; border-bottom: 2px solid #0f172a; display: inline-block; padding: 5px 40px; color: #0f172a; text-transform: uppercase; }
+
+        .info-rekap { width: 100%; margin-bottom: 20px; font-size: 12px; }
+        .info-rekap td { padding: 3px 0; }
+        .info-rekap td:first-child { width: 150px; font-weight: bold; }
+        .info-rekap td:nth-child(2) { width: 15px; }
+
+        .ung-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .ung-table th, .ung-table td { border: 1px solid #000; padding: 8px 5px; }
+        .ung-table th { background: #f1f5f9; font-weight: 800; text-align: center; text-transform: uppercase; color: #0f172a; font-size: 11px; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .fw-bold { font-weight: bold; }
+
+        .ung-footer { margin-top: 40px; display: flex; justify-content: space-between; }
+        .ung-sign-box { text-align: center; width: 250px; }
+        .ung-sign-box p { margin: 0; }
 
         @media print {
             body { background: white; padding: 0; }
-            .page { width: 100%; box-shadow: none; border-radius: 0; padding: 10mm; }
+            .page { border: none; box-shadow: none; margin: 0; width: 100%; }
             .no-print { display: none; }
-            th { background: #0f172a !important; color: white !important; -webkit-print-color-adjust: exact; }
+            .ung-header { border-bottom-color: #000; }
         }
+        
+        .no-print { text-align: center; margin: 20px 0; }
+        .btn-print { padding: 12px 30px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
     <div class="no-print">
-        <button onclick="window.print()" class="btn-print"><i class='bx bx-printer'></i> Cetak Laporan Mapel (PDF)</button>
+        <button onclick="window.print()" class="btn-print">🖨️ CETAK REKAP NILAI MATA KULIAH</button>
     </div>
 
     <div class="page">
-        <div class="header">
-            <h2>DAFTAR NILAI MATA PELAJARAN</h2>
-            <p><?php echo strtoupper($pengaturan['nama_sekolah']); ?></p>
-        </div>
-
-        <div class="info-grid">
-            <div>
-                <div class="info-item"><div class="info-label">Mata Pelajaran</div><div>: <?php echo $mapel['nama_mapel']; ?></div></div>
-                <div class="info-item"><div class="info-label">Kelas / Jurusan</div><div>: <?php echo $kelas; ?> / <?php echo $jurusan; ?></div></div>
-            </div>
-            <div>
-                <div class="info-item"><div class="info-label">Tahun Ajaran</div><div>: <?php echo $tahun; ?></div></div>
-                <div class="info-item"><div class="info-label">Semester</div><div>: <?php echo $semester; ?></div></div>
+        <div class="ung-header">
+            <img src="../<?php echo $pengaturan['logo']; ?>" class="ung-logo">
+            <div class="ung-header-text">
+                <h1><?php echo strtoupper($pengaturan['nama_sekolah']); ?></h1>
+                <h2><?php echo strtoupper($pengaturan['nama_yayasan'] ?? 'YAYASAN PENDIDIKAN DAN SOSIAL RMP GROUP INDONESIA'); ?></h2>
+                <p><?php echo $pengaturan['alamat']; ?> | Telp: <?php echo $pengaturan['telepon']; ?> | Email: <?php echo $pengaturan['email']; ?></p>
             </div>
         </div>
 
-        <table>
+        <div class="ung-title">
+            <h3>REKAPITULASI NILAI MATA KULIAH</h3>
+        </div>
+
+        <table class="info-rekap">
+            <tr><td>Mata Kuliah</td><td>:</td><td><strong><?php echo $mapel['nama_mapel']; ?> (<?php echo $mapel['kode_mapel']; ?>)</strong></td></tr>
+            <tr><td>Dosen Pengampu</td><td>:</td><td><strong><?php echo $nama_guru; ?></strong></td></tr>
+            <tr><td>Tingkat / Kelas</td><td>:</td><td><strong><?php echo $kelas; ?></strong></td></tr>
+            <tr><td>Program Studi</td><td>:</td><td><strong><?php echo $jurusan; ?></strong></td></tr>
+            <tr><td>Tahun Ajaran / Periode</td><td>:</td><td><strong><?php echo $tahun; ?> / <?php echo $semester; ?></strong></td></tr>
+        </table>
+
+        <table class="ung-table">
             <thead>
                 <tr>
-                    <th style="width: 40px;">No</th>
-                    <th>Nama Siswa</th>
-                    <th style="width: 50px;">T1</th>
-                    <th style="width: 50px;">T2</th>
-                    <th style="width: 50px;">T3</th>
-                    <th style="width: 50px;">T4</th>
+                    <th style="width: 35px;">NO</th>
+                    <th style="width: 100px;">NIM</th>
+                    <th>NAMA MAHASISWA</th>
+                    <th style="width: 40px;">T1</th>
+                    <th style="width: 40px;">T2</th>
+                    <th style="width: 40px;">T3</th>
+                    <th style="width: 40px;">T4</th>
                     <th style="width: 50px;">UTS</th>
                     <th style="width: 50px;">UAS</th>
                     <th style="width: 60px;">AKHIR</th>
-                    <th style="width: 80px;">STATUS</th>
+                    <th style="width: 50px;">HURUF</th>
                 </tr>
             </thead>
             <tbody>
                 <?php 
                 $no = 1;
                 while($row = $result->fetch_assoc()): 
-                    $avg_tugas = ($row['tugas1']+$row['tugas2']+$row['tugas3']+$row['tugas4'])/4;
-                    $final = ($avg_tugas * 0.3) + ($row['uts']*0.3) + ($row['uas']*0.4);
-                    $status = $final >= 75 ? 'LULUS' : 'REMIDI';
-                    $status_class = $final >= 75 ? 'bg-success-lite' : 'bg-danger-lite';
+                    $avg_tugas = ($row['tugas1'] + $row['tugas2'] + $row['tugas3'] + $row['tugas4']) / 4;
+                    $akhir = ($avg_tugas * 0.3) + ($row['uts'] * 0.3) + ($row['uas'] * 0.4);
+                    
+                    if ($akhir >= 85) $huruf = 'A';
+                    else if ($akhir >= 75) $huruf = 'B';
+                    else if ($akhir >= 65) $huruf = 'C';
+                    else if ($akhir >= 50) $huruf = 'D';
+                    else $huruf = 'E';
                 ?>
                 <tr>
-                    <td><?php echo $no++; ?></td>
+                    <td class="text-center"><?php echo $no++; ?></td>
+                    <td class="text-center"><?php echo $row['nis']; ?></td>
                     <td class="text-left fw-bold"><?php echo strtoupper($row['nama_siswa']); ?></td>
-                    <td><?php echo number_format($row['tugas1'], 0); ?></td>
-                    <td><?php echo number_format($row['tugas2'], 0); ?></td>
-                    <td><?php echo number_format($row['tugas3'], 0); ?></td>
-                    <td><?php echo number_format($row['tugas4'], 0); ?></td>
-                    <td><?php echo number_format($row['uts'], 0); ?></td>
-                    <td><?php echo number_format($row['uas'], 0); ?></td>
-                    <td class="fw-bold"><?php echo number_format($final, 1); ?></td>
-                    <td><span class="badge <?php echo $status_class; ?>"><?php echo $status; ?></span></td>
+                    <td class="text-center"><?php echo number_format($row['tugas1'], 0); ?></td>
+                    <td class="text-center"><?php echo number_format($row['tugas2'], 0); ?></td>
+                    <td class="text-center"><?php echo number_format($row['tugas3'], 0); ?></td>
+                    <td class="text-center"><?php echo number_format($row['tugas4'], 0); ?></td>
+                    <td class="text-center"><?php echo number_format($row['uts'], 0); ?></td>
+                    <td class="text-center"><?php echo number_format($row['uas'], 0); ?></td>
+                    <td class="text-center fw-bold" style="background: #f8fafc;"><?php echo number_format($akhir, 1); ?></td>
+                    <td class="text-center fw-bold"><?php echo $huruf; ?></td>
                 </tr>
                 <?php endwhile; ?>
-                <?php if($result->num_rows == 0): ?>
-                <tr>
-                    <td colspan="10" class="py-4 text-muted small">Tidak ada data nilai untuk filter ini.</td>
-                </tr>
-                <?php endif; ?>
             </tbody>
         </table>
 
-        <div style="margin-top: 50px; display: flex; justify-content: flex-end;">
-            <div style="text-align: center; width: 250px;">
-                <p><?php echo $pengaturan['alamat'] ? explode(',', $pengaturan['alamat'])[0] : 'Semarang'; ?>, <?php echo date('d F Y'); ?></p>
-                <p>Guru Mata Pelajaran,</p>
+        <div class="ung-footer">
+            <div class="ung-sign-box">
+                <p>Mengetahui,</p>
+                <p><strong>Ketua Program Studi</strong></p>
+                <br><br><br><br>
+                <?php
+                $kp_q = $conn->query("SELECT kaprodi, nip_kaprodi FROM jurusan WHERE nama_jurusan = '$jurusan'");
+                $kp = $kp_q->fetch_assoc();
+                ?>
+                <p><strong><u><?php echo $kp['kaprodi'] ?? '..................................'; ?></u></strong></p>
+                <p>NIP. <?php echo $kp['nip_kaprodi'] ?? '..................................'; ?></p>
+            </div>
+            <div class="ung-sign-box">
+                <p><?php echo $pengaturan['alamat'] ? explode(',', $pengaturan['alamat'])[0] : 'Pati'; ?>, <?php echo date('d F Y'); ?></p>
+                <p><strong>Dosen Pengampu,</strong></p>
                 <br><br><br><br>
                 <p><strong><u><?php echo $nama_guru; ?></u></strong></p>
                 <p>NIP. <?php echo $nip_guru; ?></p>

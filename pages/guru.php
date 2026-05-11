@@ -27,7 +27,7 @@ if ($action == 'delete' && isset($_GET['nip'])) {
     $nip = $conn->real_escape_string($_GET['nip']);
     $conn->query("DELETE FROM users WHERE username='$nip' AND role='guru'");
     $conn->query("DELETE FROM guru WHERE nip='$nip'");
-    $_SESSION['success'] = 'Data Guru Berhasil Dihapus!';
+    $_SESSION['success'] = 'Data ' . LBL_GURU . ' Berhasil Dihapus!';
     header("Location: guru.php");
     exit;
 }
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($conn->query($query)) {
             // Create user for this guru
             $conn->query("INSERT INTO users (username, password, role) VALUES ('$nip', MD5('12345'), 'guru')");
-            $_SESSION['success'] = 'Data Guru Berhasil Ditambahkan!';
+            $_SESSION['success'] = 'Data ' . LBL_GURU . ' Berhasil Ditambahkan!';
         }
         header("Location: guru.php");
         exit;
@@ -78,14 +78,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($nip != $old_nip) {
                 $conn->query("UPDATE users SET username='$nip' WHERE username='$old_nip' AND role='guru'");
             }
-            $_SESSION['success'] = 'Data Guru Berhasil Diperbarui!';
+            $_SESSION['success'] = 'Data ' . LBL_GURU . ' Berhasil Diperbarui!';
         }
         header("Location: guru.php");
         exit;
     }
 }
 
-$page_title = 'Data Guru';
+$page_title = 'Data ' . LBL_GURU;
 include '../layouts/header.php'; 
 ?>
 
@@ -93,14 +93,14 @@ include '../layouts/header.php';
     <?php if ($action == 'list'): ?>
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-chalkboard text-primary me-2'></i> Manajemen Guru</h3>
-                <p class="text-muted mb-0 small">Kelola data tenaga pengajar, kontak, dan status keaktifan.</p>
+                <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-chalkboard text-primary me-2'></i> Manajemen <?php echo LBL_GURU; ?></h3>
+                <p class="text-muted mb-0 small">Kelola data <?php echo strtolower(LBL_GURU); ?>, kontak, dan status keaktifan.</p>
             </div>
             <a href="guru.php?action=add" class="btn fw-bold rounded-3 px-4 shadow-sm text-white d-flex align-items-center justify-content-center" 
                style="background-color: #0f172a; border: none; transition: all 0.3s ease; height: 45px;" 
                onmouseover="this.style.backgroundColor='#10b981'; this.style.transform='translateY(-2px)'" 
                onmouseout="this.style.backgroundColor='#0f172a'; this.style.transform='translateY(0)'">
-                <i class='bx bx-plus-circle me-2 fs-5'></i> Guru Baru
+                <i class='bx bx-plus-circle me-2 fs-5'></i> <?php echo LBL_GURU; ?> Baru
             </a>
         </div>
 
@@ -110,7 +110,7 @@ include '../layouts/header.php';
                 <table class="table table-hover align-middle datatable">
                     <thead class="table-light text-muted">
                         <tr>
-                            <th class="fw-semibold pb-3">Profil Guru</th>
+                            <th class="fw-semibold pb-3">Profil <?php echo LBL_GURU; ?></th>
                             <th class="fw-semibold pb-3 d-none d-md-table-cell">Kontak & Agama</th>
                             <th class="fw-semibold pb-3 d-none d-sm-table-cell">Status</th>
                             <th class="fw-semibold pb-3 text-end">Aksi</th>
@@ -205,7 +205,7 @@ include '../layouts/header.php';
                           <span id="detailInitial">G</span>
                       </div>
                   </div>
-                  <h5 class="fw-bold text-dark mb-1" id="detailNama">Nama Guru</h5>
+                  <h5 class="fw-bold text-dark mb-1" id="detailNama">Nama <?php echo LBL_GURU; ?></h5>
                   <p class="text-muted mb-2" style="font-size: 0.85rem;">
                       <i class='bx bx-id-card me-1'></i> NIP: <span class="fw-bold text-dark" id="detailNis">12345</span>
                       <button class="btn btn-link p-0 ms-1 text-primary" onclick="copyNip()" title="Salin NIP">
@@ -304,8 +304,8 @@ include '../layouts/header.php';
     ?>
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-edit text-success me-2'></i> <?php echo $action == 'add' ? 'Registrasi Guru Baru' : 'Perbarui Data Guru'; ?></h3>
-                <p class="text-muted mb-0 small">Lengkapi informasi data guru di bawah ini.</p>
+                <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-edit text-success me-2'></i> <?php echo $action == 'add' ? 'Registrasi ' . LBL_GURU . ' Baru' : 'Perbarui Data ' . LBL_GURU; ?></h3>
+                <p class="text-muted mb-0 small">Lengkapi informasi data <?php echo strtolower(LBL_GURU); ?> di bawah ini.</p>
             </div>
             <a href="guru.php" class="btn btn-outline-secondary fw-medium rounded-3 px-4 shadow-sm">
                 <i class='bx bx-arrow-back me-1'></i> Kembali
@@ -365,7 +365,7 @@ include '../layouts/header.php';
                 <div class="d-flex flex-column flex-md-row justify-content-end gap-2 pt-3 border-top">
                     <a href="guru.php" class="btn btn-light border px-4 py-2 fw-medium text-muted">Batal</a>
                     <button type="submit" class="btn px-4 py-2 fw-medium text-white shadow-sm" style="background-color: #0f172a; transition: all 0.3s;" onmouseover="this.style.backgroundColor='#10b981'" onmouseout="this.style.backgroundColor='#0f172a'">
-                        <i class='bx bx-save me-1'></i> Simpan Data Guru
+                        <i class='bx bx-save me-1'></i> Simpan Data <?php echo LBL_GURU; ?>
                     </button>
                 </div>
             </div>

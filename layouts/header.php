@@ -52,6 +52,13 @@ $page_title = $page_title ?? 'SIAKAD Profesional';
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="../assets/css/style.css">
+    <?php
+    $fav_q = $conn->query("SELECT logo FROM pengaturan_sekolah WHERE id=1");
+    $fav_p = $fav_q ? $fav_q->fetch_assoc() : null;
+    $favicon_path = $fav_p['logo'] ?? '';
+    if (!empty($favicon_path) && file_exists('../' . $favicon_path)): ?>
+        <link rel="icon" type="image/x-icon" href="../<?php echo $favicon_path; ?>">
+    <?php endif; ?>
     <style>
         .main-wrapper {
             display: flex;

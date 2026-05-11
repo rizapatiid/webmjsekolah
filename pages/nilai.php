@@ -20,7 +20,21 @@ if ($action == 'delete' && isset($_GET['id'])) {
     exit;
 }
 
+$check_ta = $conn->query("SHOW COLUMNS FROM nilai LIKE 'tahun_ajaran'");
+if ($check_ta && $check_ta->num_rows == 0) {
+    $conn->query("ALTER TABLE nilai ADD COLUMN tahun_ajaran VARCHAR(20) DEFAULT '' AFTER id_mapel");
+    $conn->query("ALTER TABLE nilai ADD COLUMN semester VARCHAR(20) DEFAULT '' AFTER tahun_ajaran");
+}
+
+// Update existing empty data with active period
+$conn->query("UPDATE nilai SET tahun_ajaran = (SELECT tahun_ajaran FROM pengaturan_sekolah WHERE id=1), semester = (SELECT semester FROM pengaturan_sekolah WHERE id=1) WHERE tahun_ajaran = '' OR tahun_ajaran IS NULL");
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $p_query = $conn->query("SELECT tahun_ajaran, semester FROM pengaturan_sekolah WHERE id=1");
+    $p_data = $p_query->fetch_assoc();
+    $active_ta = $p_data['tahun_ajaran'];
+    $active_smt = $p_data['semester'];
+
     $nis_siswa = $conn->real_escape_string($_POST['nis_siswa']);
     $id_mapel = (int) $_POST['id_mapel'];
     $tugas1 = (float) $_POST['tugas1'];
@@ -31,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $uas = (float) $_POST['uas'];
 
     // Smart Upsert Check: Always check if record exists regardless of action
-    $check = $conn->query("SELECT id FROM nilai WHERE nis_siswa = '$nis_siswa' AND id_mapel = $id_mapel");
+    $check = $conn->query("SELECT id FROM nilai WHERE nis_siswa = '$nis_siswa' AND id_mapel = $id_mapel AND tahun_ajaran = '$active_ta' AND semester = '$active_smt'");
     
     if ($check->num_rows > 0) {
         // Record exists -> UPDATE
@@ -40,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['success'] = 'Data Nilai Berhasil Diperbarui!';
     } else {
         // Record doesn't exist -> INSERT
-        $conn->query("INSERT INTO nilai (nis_siswa, id_mapel, tugas1, tugas2, tugas3, tugas4, uts, uas) 
-                      VALUES ('$nis_siswa', $id_mapel, $tugas1, $tugas2, $tugas3, $tugas4, $uts, $uas)");
+        $conn->query("INSERT INTO nilai (nis_siswa, id_mapel, tahun_ajaran, semester, tugas1, tugas2, tugas3, tugas4, uts, uas) 
+                      VALUES ('$nis_siswa', $id_mapel, '$active_ta', '$active_smt', $tugas1, $tugas2, $tugas3, $tugas4, $uts, $uas)");
         $_SESSION['success'] = 'Hasil Nilai Berhasil Ditambahkan!';
     }
     header("Location: nilai.php");
@@ -65,7 +79,6 @@ $username = $_SESSION['user']['username'];
 
 // Get filter values from GET
 $f_tahun = $_GET['tahun'] ?? '';
-$f_semester = $_GET['semester'] ?? '';
 $f_jurusan = $_GET['jurusan'] ?? '';
 $f_kelas = $_GET['kelas'] ?? '';
 $f_mapel = $_GET['mapel'] ?? '';
@@ -73,13 +86,9 @@ $f_mapel = $_GET['mapel'] ?? '';
 if ($role == 'siswa') {
     $f_nis = $username;
     $filters_selected = true; // Always show for student
-} elseif ($role == 'guru') {
-    // For Guru, we show the list if any filter is clicked or just show what they teach
-    $filters_selected = ($f_tahun || $f_semester || $f_jurusan || $f_kelas || $f_mapel);
-    if (!isset($_GET['tahun'])) $filters_selected = false; // Initial state: wait for search
 } else {
-    $filters_selected = ($f_tahun || $f_semester || $f_jurusan || $f_kelas || $f_mapel);
-    if (!isset($_GET['tahun'])) $filters_selected = false; // Initial state: wait for search
+    // Show all by default for guru/admin
+    $filters_selected = true;
 }
 ?>
 
@@ -162,7 +171,7 @@ if ($role == 'siswa') {
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
             <div>
                 <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-bar-chart-alt-2 text-primary me-2'></i> Manajemen Nilai</h3>
-                <p class="text-muted mb-0 small">Rekapitulasi nilai tugas, UTS, UAS, dan nilai akhir siswa.</p>
+                <p class="text-muted mb-0 small">Rekapitulasi nilai tugas, UTS, UAS, dan nilai akhir <?php echo strtolower(LBL_SISWA); ?>.</p>
             </div>
             <div class="d-flex gap-2">
                 <?php if ($role == 'siswa'): ?>
@@ -188,10 +197,10 @@ if ($role == 'siswa') {
                             <i class='bx bx-printer me-2 fs-5'></i> Transkrip Nilai
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 overflow-hidden">
-                            <li><a class="dropdown-item py-2 px-3 fw-medium" href="#" onclick="generateReport('kelas')"><i class='bx bx-building-house me-2'></i> Nilai Kelas</a></li>
+                            <li><a class="dropdown-item py-2 px-3 fw-medium" href="#" onclick="generateReport('kelas')"><i class='bx bx-building-house me-2'></i> Nilai <?php echo LBL_KELAS; ?></a></li>
                             <li><a class="dropdown-item py-2 px-3 fw-medium" href="#" onclick="generateReport('mapel')"><i class='bx bx-book me-2'></i> Nilai Mapel</a></li>
                             <li><hr class="dropdown-divider m-0 opacity-50"></li>
-                            <li><a class="dropdown-item py-2 px-3 fw-medium" href="#" onclick="generateReport('siswa')"><i class='bx bx-user me-2'></i> Nilai Siswa</a></li>
+                            <li><a class="dropdown-item py-2 px-3 fw-medium" href="#" onclick="generateReport('siswa')"><i class='bx bx-user me-2'></i> Nilai <?php echo LBL_SISWA; ?></a></li>
                         </ul>
                     </div>
                 <?php endif; ?>
@@ -216,7 +225,7 @@ if ($role == 'siswa') {
                 </div>
                 <div>
                     <h6 class="fw-bold text-dark mb-0">Penyaringan Data</h6>
-                    <small class="text-muted">Tentukan kriteria untuk menampilkan nilai siswa</small>
+                    <small class="text-muted">Tentukan kriteria untuk menampilkan nilai <?php echo strtolower(LBL_SISWA); ?></small>
                 </div>
             </div>
 
@@ -230,17 +239,10 @@ if ($role == 'siswa') {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-12 col-md-4 col-lg-2">
-                    <label class="filter-label"><i class='bx bx-time-five'></i> Semester</label>
-                    <select name="semester" class="form-select form-select-custom">
-                        <option value="">-- Semua --</option>
-                        <option value="Ganjil" <?php echo ($f_semester ?: $pengaturan['semester']) == 'Ganjil' ? 'selected' : ''; ?>>Ganjil</option>
-                        <option value="Genap" <?php echo ($f_semester ?: $pengaturan['semester']) == 'Genap' ? 'selected' : ''; ?>>Genap</option>
-                    </select>
-                </div>
+
                 <div class="col-12 col-md-4 col-lg-2">
                     <label class="filter-label"><i class='bx bx-git-branch'></i> Jurusan</label>
-                    <select name="jurusan" class="form-select form-select-custom">
+                    <select name="jurusan" id="filter-jurusan" class="form-select form-select-custom">
                         <option value="">-- Semua --</option>
                         <?php foreach ($daftar_jurusan as $j): ?>
                             <option value="<?php echo $j; ?>" <?php echo $f_jurusan == $j ? 'selected' : ''; ?>><?php echo $j; ?>
@@ -249,11 +251,11 @@ if ($role == 'siswa') {
                     </select>
                 </div>
                 <div class="col-12 col-md-6 col-lg-2">
-                    <label class="filter-label"><i class='bx bx-building-house'></i> Kelas</label>
-                    <select name="kelas" class="form-select form-select-custom">
-                        <option value="">-- Semua --</option>
+                    <label class="filter-label"><i class='bx bx-building-house'></i> <?php echo (LBL_INSTANSI == 'Kampus') ? 'Tingkat ' . LBL_KELAS : LBL_KELAS; ?></label>
+                    <select name="kelas" id="filter-kelas" class="form-select form-select-custom">
+                        <option value="">-- Pilih <?php echo LBL_KELAS; ?> --</option>
                         <?php
-                        $kelas_q = "SELECT DISTINCT k.nama_kelas FROM kelas k";
+                        $kelas_q = "SELECT DISTINCT k.nama_kelas, k.jurusan FROM kelas k";
                         if ($role == 'guru') {
                             $kelas_q .= " LEFT JOIN kelas_mapel km ON k.id = km.id_kelas
                                          LEFT JOIN mapel m ON km.id_mapel = m.id
@@ -262,7 +264,7 @@ if ($role == 'siswa') {
                         $kelas_q .= " ORDER BY k.nama_kelas ASC";
                         $kelas_res = $conn->query($kelas_q);
                         while ($k = $kelas_res->fetch_assoc()): ?>
-                            <option value="<?php echo $k['nama_kelas']; ?>" <?php echo $f_kelas == $k['nama_kelas'] ? 'selected' : ''; ?>><?php echo $k['nama_kelas']; ?></option>
+                            <option value="<?php echo $k['nama_kelas']; ?>" data-jurusan="<?php echo $k['jurusan']; ?>" <?php echo $f_kelas == $k['nama_kelas'] ? 'selected' : ''; ?>><?php echo $k['nama_kelas']; ?></option>
                         <?php endwhile; ?>
                     </select>
                 </div>
@@ -292,18 +294,22 @@ if ($role == 'siswa') {
         </div>
         <?php endif; ?>
 
-        <?php if ($filters_selected && $role != 'siswa'): 
-            // Calculate Statistics for the filtered data
-            $stats_q = "SELECT AVG(( (tugas1+tugas2+tugas3+tugas4)/4 * 0.3) + (uts * 0.3) + (uas * 0.4)) as avg_akhir,
-                               COUNT(*) as total_siswa
+        <?php if ($role != 'siswa'): 
+            // Calculate Statistics for the displayed data
+            $stats_q = "SELECT AVG(( (n.tugas1+n.tugas2+n.tugas3+n.tugas4)/4 * 0.3) + (n.uts * 0.3) + (n.uas * 0.4)) as avg_akhir,
+                               COUNT(DISTINCT n.nis_siswa) as total_siswa
                         FROM nilai n 
                         JOIN siswa s ON n.nis_siswa = s.nis 
                         WHERE 1=1";
-            if ($f_tahun) $stats_q .= " AND s.tahun_ajaran = '$f_tahun'";
-            if ($f_semester) $stats_q .= " AND s.semester = '$f_semester'";
-            if ($f_jurusan) $stats_q .= " AND s.jurusan = '$f_jurusan'";
-            if ($f_kelas) $stats_q .= " AND s.kelas = '$f_kelas'";
+            if ($f_tahun) $stats_q .= " AND TRIM(n.tahun_ajaran) = TRIM('$f_tahun')";
+            if ($f_jurusan) $stats_q .= " AND TRIM(s.jurusan) = TRIM('$f_jurusan')";
+            if ($f_kelas) $stats_q .= " AND TRIM(s.kelas) = TRIM('$f_kelas')";
             if ($f_mapel) $stats_q .= " AND n.id_mapel = " . (int)$f_mapel;
+            
+            if ($role == 'guru') {
+                $stats_q .= " AND (n.id_mapel IN (SELECT id FROM mapel WHERE nip_guru = '$username')
+                             OR s.kelas IN (SELECT nama_kelas FROM kelas WHERE wali_guru = '$username'))";
+            }
             
             $stats_res = $conn->query($stats_q);
             $stats = $stats_res->fetch_assoc();
@@ -319,7 +325,7 @@ if ($role == 'siswa') {
                 <div class="col-md-6 col-lg-3">
                     <div class="bg-white p-3 rounded-4 shadow-sm border border-start border-4 border-success">
                         <small class="text-muted fw-bold d-block mb-1">TOTAL DATA</small>
-                        <h4 class="fw-bold mb-0 text-dark"><?php echo $stats['total_siswa']; ?> Siswa</h4>
+                        <h4 class="fw-bold mb-0 text-dark"><?php echo $stats['total_siswa']; ?> <?php echo LBL_SISWA; ?></h4>
                     </div>
                 </div>
             </div>
@@ -331,7 +337,13 @@ if ($role == 'siswa') {
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
                 <div>
                     <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-bar-chart-alt-2 text-primary me-2'></i> 
-                        <?php echo ($role == 'siswa') ? 'Raport Akademik Saya' : 'Hasil Nilai: ' . htmlspecialchars($f_kelas); ?>
+                        <?php 
+                        if ($role == 'siswa') {
+                            echo 'Raport Akademik Saya';
+                        } else {
+                            echo $f_kelas ? 'Hasil Nilai: ' . htmlspecialchars($f_kelas) : 'Seluruh Hasil Nilai';
+                        }
+                        ?>
                     </h3>
                     <p class="text-muted mb-0 small">
                         <?php echo ($role == 'siswa') ? 'Berikut adalah rincian capaian nilai akademik Anda.' : 'Menampilkan rekapitulasi nilai untuk filter yang dipilih.'; ?>
@@ -340,30 +352,13 @@ if ($role == 'siswa') {
             </div>
         <?php endif; ?>
 
-        <?php if (!$filters_selected): ?>
-            <div class="empty-filter-state p-5 text-center shadow-sm">
-                <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center mb-4 shadow-sm"
-                    style="width: 100px; height: 100px;">
-                    <i class='bx bx-spreadsheet fs-1 text-primary'></i>
-                </div>
-                <h4 class="fw-bold text-dark mb-2">Siap Menampilkan Data Nilai?</h4>
-                <p class="text-muted mx-auto" style="max-width: 500px;">Gunakan panel filter di atas untuk memilih kriteria
-                    akademik yang spesifik. Pilih Tahun Ajaran, Semester, Jurusan, Kelas, dan Mata Pelajaran untuk mulai
-                    mengelola nilai.</p>
-                <div class="d-flex justify-content-center gap-2 mt-4">
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill small">#Akademik</span>
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill small">#HasilBelajar</span>
-                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill small">#SIAKAD</span>
-                </div>
-            </div>
-        <?php else: ?>
-            <!-- Table Panel -->
-            <div class="bg-white p-4 rounded-4 border shadow-sm">
+        <!-- Table Panel -->
+        <div class="bg-white p-4 rounded-4 border shadow-sm">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle datatable">
                         <thead class="table-light text-muted">
                             <tr>
-                                <th class="fw-semibold pb-3">Siswa & Mapel</th>
+                                <th class="fw-semibold pb-3"><?php echo LBL_SISWA; ?> & Mapel</th>
                                 <th class="fw-semibold pb-3 text-center">T1</th>
                                 <th class="fw-semibold pb-3 text-center">T2</th>
                                 <th class="fw-semibold pb-3 text-center">T3</th>
@@ -391,10 +386,9 @@ if ($role == 'siswa') {
                                       JOIN mapel m ON n.id_mapel = m.id
                                       WHERE 1=1";
                                 
-                                if ($f_tahun) $query .= " AND s.tahun_ajaran = '$f_tahun'";
-                                if ($f_semester) $query .= " AND s.semester = '$f_semester'";
-                                if ($f_jurusan) $query .= " AND s.jurusan = '$f_jurusan'";
-                                if ($f_kelas) $query .= " AND s.kelas = '$f_kelas'";
+                                if ($f_tahun) $query .= " AND TRIM(n.tahun_ajaran) = TRIM('$f_tahun')";
+                                if ($f_jurusan) $query .= " AND TRIM(s.jurusan) = TRIM('$f_jurusan')";
+                                if ($f_kelas) $query .= " AND TRIM(s.kelas) = TRIM('$f_kelas')";
                                 if ($f_mapel) $query .= " AND n.id_mapel = " . (int)$f_mapel;
                                 
                                 if ($role == 'guru') {
@@ -481,7 +475,6 @@ if ($role == 'siswa') {
                     </table>
                 </div>
             </div>
-        <?php endif; ?>
 
     <?php elseif ($action == 'add' || $action == 'edit'):
         if ($role == 'siswa') {
@@ -507,7 +500,7 @@ if ($role == 'siswa') {
             <div>
                 <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-edit text-primary me-2'></i>
                     <?php echo $action == 'add' ? 'Input Nilai Baru' : 'Perbarui Capaian Nilai'; ?></h3>
-                <p class="text-muted mb-0 small">Gunakan formulir di bawah untuk mencatat hasil belajar siswa.</p>
+                <p class="text-muted mb-0 small">Gunakan formulir di bawah untuk mencatat hasil belajar <?php echo strtolower(LBL_SISWA); ?>.</p>
             </div>
             <a href="nilai.php" class="btn btn-outline-secondary fw-medium rounded-3 px-4 shadow-sm">
                 <i class='bx bx-arrow-back me-1'></i> Kembali
@@ -545,9 +538,9 @@ if ($role == 'siswa') {
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold text-muted small">Pilih Kelas</label>
+                                <label class="form-label fw-bold text-muted small">Pilih <?php echo LBL_KELAS; ?></label>
                                 <select id="form-kelas" class="form-select form-select-lg border-2 shadow-xs" required onchange="updateFormChain('kelas')" <?php echo !$m_id ? 'disabled' : ''; ?>>
-                                    <option value="">-- Pilih Kelas --</option>
+                                    <option value="">-- Pilih <?php echo LBL_KELAS; ?> --</option>
                                     <?php
                                     $k_nama = $_GET['kelas'] ?? '';
                                     if ($m_id) {
@@ -562,9 +555,9 @@ if ($role == 'siswa') {
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold text-muted small">Pilih Siswa</label>
+                                <label class="form-label fw-bold text-muted small">Pilih <?php echo LBL_SISWA; ?></label>
                                 <select name="nis_siswa" id="form-siswa" class="form-select form-select-lg border-2 shadow-xs" required onchange="updateFormChain('siswa')" <?php echo !$k_nama ? 'disabled' : ''; ?>>
-                                    <option value="">-- Pilih Siswa --</option>
+                                    <option value="">-- Pilih <?php echo LBL_SISWA; ?> --</option>
                                     <?php
                                     $s_nis_active = $_GET['nis'] ?? ($row['nis_siswa'] ?? '');
                                     if ($k_nama) {
@@ -854,10 +847,10 @@ if ($role == 'siswa') {
                     window.open('cetak_transkrip.php?nis=<?php echo $username; ?>', '_blank');
                 <?php else: ?>
                     Swal.fire({
-                        title: 'Pilih Siswa',
+                        title: 'Pilih <?php echo LBL_SISWA; ?>',
                         html: `
                             <select id="swal-nis" class="form-select mt-3">
-                                <option value="">-- Pilih Siswa --</option>
+                                <option value="">-- Pilih <?php echo LBL_SISWA; ?> --</option>
                                 <?php 
                                 $s_list = $conn->query("SELECT nis, nama FROM siswa ORDER BY nama ASC");
                                 while($sl = $s_list->fetch_assoc()): ?>
@@ -871,7 +864,7 @@ if ($role == 'siswa') {
                         preConfirm: () => {
                             const nis = document.getElementById('swal-nis').value;
                             if (!nis) {
-                                Swal.showValidationMessage('Silakan pilih siswa terlebih dahulu');
+                                Swal.showValidationMessage('Silakan pilih <?php echo strtolower(LBL_SISWA); ?> terlebih dahulu');
                             }
                             return nis;
                         }
@@ -883,7 +876,7 @@ if ($role == 'siswa') {
                 <?php endif; ?>
             } else if(type === 'kelas') {
                 Swal.fire({
-                    title: 'Cetak Rekap Nilai Kelas',
+                    title: 'Cetak Rekap Nilai <?php echo LBL_KELAS; ?>',
                     html: `
                         <div class="text-start">
                             <label class="small fw-bold text-muted">Tahun Ajaran</label>
@@ -892,34 +885,47 @@ if ($role == 'siswa') {
                                     <option value="<?php echo $t; ?>"><?php echo $t; ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <label class="small fw-bold text-muted">Semester</label>
-                            <select id="swal-semester" class="form-select mb-2">
-                                <option value="Ganjil">Ganjil</option>
-                                <option value="Genap">Genap</option>
-                            </select>
+
                             <label class="small fw-bold text-muted">Jurusan</label>
                             <select id="swal-jurusan" class="form-select mb-2">
                                 <?php foreach($daftar_jurusan as $j): ?>
                                     <option value="<?php echo $j; ?>"><?php echo $j; ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <label class="small fw-bold text-muted">Kelas</label>
+                            <label class="small fw-bold text-muted"><?php echo LBL_KELAS; ?></label>
                             <select id="swal-kelas" class="form-select">
+                                <option value="">-- Pilih <?php echo LBL_KELAS; ?> --</option>
                                 <?php 
-                                $k_list = $conn->query("SELECT nama_kelas FROM kelas ORDER BY nama_kelas ASC");
+                                $k_list = $conn->query("SELECT nama_kelas, jurusan FROM kelas ORDER BY nama_kelas ASC");
                                 while($kl = $k_list->fetch_assoc()): ?>
-                                    <option value="<?php echo $kl['nama_kelas']; ?>"><?php echo $kl['nama_kelas']; ?></option>
+                                    <option value="<?php echo $kl['nama_kelas']; ?>" data-jurusan="<?php echo $kl['jurusan']; ?>"><?php echo $kl['nama_kelas']; ?></option>
                                 <?php endwhile; ?>
                             </select>
                         </div>
                     `,
+                    didOpen: () => {
+                        const jur = document.getElementById('swal-jurusan');
+                        const kel = document.getElementById('swal-kelas');
+                        const opts = Array.from(kel.options);
+                        
+                        const sync = () => {
+                            const val = jur.value;
+                            kel.innerHTML = '';
+                            kel.disabled = !val;
+                            opts.forEach(o => {
+                                if(o.value==="" || o.getAttribute('data-jurusan')===val) kel.appendChild(o);
+                            });
+                        };
+                        
+                        jur.addEventListener('change', sync);
+                        sync();
+                    },
                     showCancelButton: true,
                     confirmButtonText: 'Cetak Rekap',
                     confirmButtonColor: '#0f172a',
                     preConfirm: () => {
                         return {
                             tahun: document.getElementById('swal-tahun').value,
-                            semester: document.getElementById('swal-semester').value,
                             jurusan: document.getElementById('swal-jurusan').value,
                             kelas: document.getElementById('swal-kelas').value
                         }
@@ -927,7 +933,7 @@ if ($role == 'siswa') {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         const p = result.value;
-                        window.open(`cetak_rekap_kelas.php?tahun=${p.tahun}&semester=${p.semester}&jurusan=${p.jurusan}&kelas=${p.kelas}`, '_blank');
+                        window.open(`cetak_rekap_kelas.php?tahun=${p.tahun}&jurusan=${p.jurusan}&kelas=${p.kelas}`, '_blank');
                     }
                 });
             } else if(type === 'mapel') {
@@ -936,7 +942,7 @@ if ($role == 'siswa') {
                     html: `
                         <div class="text-start">
                             <div class="row g-2">
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <label class="small fw-bold text-muted">Tahun Ajaran</label>
                                     <select id="swal-tahun" class="form-select mb-2">
                                         <?php foreach($daftar_tahun as $t): ?>
@@ -944,13 +950,7 @@ if ($role == 'siswa') {
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="small fw-bold text-muted">Semester</label>
-                                    <select id="swal-semester" class="form-select mb-2">
-                                        <option value="Ganjil">Ganjil</option>
-                                        <option value="Genap">Genap</option>
-                                    </select>
-                                </div>
+
                             </div>
                             <label class="small fw-bold text-muted">Jurusan</label>
                             <select id="swal-jurusan" class="form-select mb-2">
@@ -958,36 +958,57 @@ if ($role == 'siswa') {
                                     <option value="<?php echo $j; ?>"><?php echo $j; ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <label class="small fw-bold text-muted">Kelas</label>
+                            <label class="small fw-bold text-muted"><?php echo LBL_KELAS; ?></label>
                             <select id="swal-kelas" class="form-select mb-2">
+                                <option value="">-- Pilih <?php echo LBL_KELAS; ?> --</option>
                                 <?php 
-                                $k_list = $conn->query("SELECT nama_kelas FROM kelas ORDER BY nama_kelas ASC");
+                                $k_list = $conn->query("SELECT nama_kelas, jurusan FROM kelas ORDER BY nama_kelas ASC");
                                 while($kl = $k_list->fetch_assoc()): ?>
-                                    <option value="<?php echo $kl['nama_kelas']; ?>"><?php echo $kl['nama_kelas']; ?></option>
+                                    <option value="<?php echo $kl['nama_kelas']; ?>" data-jurusan="<?php echo $kl['jurusan']; ?>"><?php echo $kl['nama_kelas']; ?></option>
                                 <?php endwhile; ?>
                             </select>
                             <label class="small fw-bold text-muted">Mata Pelajaran</label>
                             <select id="swal-mapel" class="form-select">
+                                <option value="">-- Pilih Mapel --</option>
                                 <?php 
-                                $m_q = "SELECT id, nama_mapel FROM mapel";
+                                $m_q = "SELECT id, nama_mapel, jurusan FROM mapel";
                                 if ($role == 'guru') {
                                     $m_q .= " WHERE nip_guru = '$username'";
                                 }
                                 $m_q .= " ORDER BY nama_mapel ASC";
                                 $m_list = $conn->query($m_q);
                                 while($ml = $m_list->fetch_assoc()): ?>
-                                    <option value="<?php echo $ml['id']; ?>"><?php echo $ml['nama_mapel']; ?></option>
+                                    <option value="<?php echo $ml['id']; ?>" data-jurusan="<?php echo $ml['jurusan']; ?>"><?php echo $ml['nama_mapel']; ?></option>
                                 <?php endwhile; ?>
                             </select>
                         </div>
                     `,
+                    didOpen: () => {
+                        const jur = document.getElementById('swal-jurusan');
+                        const kel = document.getElementById('swal-kelas');
+                        const mpl = document.getElementById('swal-mapel');
+                        const k_opts = Array.from(kel.options);
+                        const m_opts = Array.from(mpl.options);
+                        
+                        const sync = () => {
+                            const val = jur.value;
+                            kel.innerHTML = '';
+                            mpl.innerHTML = '';
+                            kel.disabled = !val;
+                            mpl.disabled = !val;
+                            k_opts.forEach(o => { if(o.value==="" || o.getAttribute('data-jurusan')===val) kel.appendChild(o); });
+                            m_opts.forEach(o => { if(o.value==="" || o.getAttribute('data-jurusan')===val) mpl.appendChild(o); });
+                        };
+                        
+                        jur.addEventListener('change', sync);
+                        sync();
+                    },
                     showCancelButton: true,
                     confirmButtonText: 'Cetak Laporan',
                     confirmButtonColor: '#0f172a',
                     preConfirm: () => {
                         return {
                             tahun: document.getElementById('swal-tahun').value,
-                            semester: document.getElementById('swal-semester').value,
                             jurusan: document.getElementById('swal-jurusan').value,
                             kelas: document.getElementById('swal-kelas').value,
                             mapel: document.getElementById('swal-mapel').value
@@ -996,7 +1017,7 @@ if ($role == 'siswa') {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         const p = result.value;
-                        window.open(`cetak_rekap_mapel.php?tahun=${p.tahun}&semester=${p.semester}&jurusan=${p.jurusan}&kelas=${p.kelas}&mapel=${p.mapel}`, '_blank');
+                        window.open(`cetak_rekap_mapel.php?tahun=${p.tahun}&jurusan=${p.jurusan}&kelas=${p.kelas}&mapel=${p.mapel}`, '_blank');
                     }
                 });
             } else {
@@ -1009,5 +1030,40 @@ if ($role == 'siswa') {
                 });
             }
         }
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const jurFilter = document.getElementById('filter-jurusan');
+            const kelasFilter = document.getElementById('filter-kelas');
+            
+            if(jurFilter && kelasFilter) {
+                const allKelasOptions = Array.from(kelasFilter.options);
+                
+                function syncKelas() {
+                    const selectedJur = jurFilter.value;
+                    const currentSelected = kelasFilter.value;
+                    
+                    kelasFilter.innerHTML = '';
+                    kelasFilter.disabled = !selectedJur;
+                    
+                    allKelasOptions.forEach(opt => {
+                        if (opt.value === "") {
+                            kelasFilter.appendChild(opt);
+                            return;
+                        }
+                        
+                        const optJur = opt.getAttribute('data-jurusan');
+                        if (optJur === selectedJur) {
+                            kelasFilter.appendChild(opt);
+                        }
+                    });
+                    
+                    kelasFilter.value = currentSelected;
+                }
+                
+                jurFilter.addEventListener('change', syncKelas);
+                syncKelas(); // Initial sync
+            }
+        });
         </script>
         <?php include '../layouts/footer.php'; ?>

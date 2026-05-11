@@ -11,6 +11,11 @@ if (isset($_SESSION['user'])) {
     exit;
 }
 
+$login_pengaturan_res = $conn->query("SELECT logo FROM pengaturan_sekolah WHERE id=1");
+$login_pengaturan = $login_pengaturan_res ? $login_pengaturan_res->fetch_assoc() : null;
+$login_logo = $login_pengaturan['logo'] ?? '';
+
+
 if (isset($_POST['login'])) {
     $username = $conn->real_escape_string($_POST['username']);
     $password_raw = $_POST['password'];
@@ -251,17 +256,20 @@ if (isset($_POST['login'])) {
         <!-- Left Visual Section (Desktop Only) -->
         <div class="brand-section d-none d-lg-flex">
             <div class="brand-logo">
-                <div class="bg-white p-2 rounded-3 text-primary d-flex align-items-center justify-content-center"
-                    style="width:48px; height:48px;">
-                    <i class='bx bxs-graduation fs-2'></i>
-                </div>
+                <?php if (!empty($login_logo) && file_exists($login_logo)): ?>
+                    <img src="<?php echo $login_logo; ?>" alt="Logo Sekolah" class="rounded-3" style="max-height:48px; object-fit:contain;">
+                <?php else: ?>
+                    <div class="bg-white p-2 rounded-3 text-primary d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
+                        <i class='bx bxs-graduation fs-2'></i>
+                    </div>
+                <?php endif; ?>
                 <h3 class="mb-0 fw-bold tracking-tight">SIAKAD<span style="color:#3b82f6;">.</span></h3>
             </div>
 
             <div class="brand-content">
                 <h1 class="display-5 fw-bold mb-4">Kelola Data Pendidikan dengan Cerdas.</h1>
                 <p class="fs-5 opacity-75 lh-base">Sistem Manajemen Akademik modern, cepat, dan responsif.
-                    Mengotomatisasi manajemen siswa, guru, hingga perekapan nilai dalam satu portal terpadu.</p>
+                    Mengotomatisasi manajemen <?php echo strtolower(LBL_SISWA); ?>, <?php echo strtolower(LBL_GURU); ?>, hingga perekapan nilai dalam satu portal terpadu.</p>
                 <div class="mt-5 d-flex gap-3">
                     <div class="d-flex align-items-center gap-2 text-white opacity-75">
                         <i class='bx bx-check-circle fs-4 text-success'></i> Terintegrasi
@@ -282,10 +290,13 @@ if (isset($_POST['login'])) {
             <div class="form-wrapper">
                 <!-- Mobile Logo -->
                 <div class="d-flex d-lg-none align-items-center gap-2 mb-4 justify-content-center">
-                    <div class="bg-dark p-2 rounded-3 text-white d-flex align-items-center justify-content-center"
-                        style="width:42px; height:42px;">
-                        <i class='bx bxs-graduation fs-3'></i>
-                    </div>
+                    <?php if (!empty($login_logo) && file_exists($login_logo)): ?>
+                        <img src="<?php echo $login_logo; ?>" alt="Logo Sekolah" class="rounded-3" style="max-height:42px; object-fit:contain;">
+                    <?php else: ?>
+                        <div class="bg-dark p-2 rounded-3 text-white d-flex align-items-center justify-content-center" style="width:42px; height:42px;">
+                            <i class='bx bxs-graduation fs-3'></i>
+                        </div>
+                    <?php endif; ?>
                     <h3 class="mb-0 fw-bold text-dark">SIAKAD<span style="color:#3b82f6;">.</span></h3>
                 </div>
 

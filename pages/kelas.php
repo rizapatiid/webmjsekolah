@@ -18,9 +18,15 @@ $username = $user['username'];
 $conn->query("CREATE TABLE IF NOT EXISTS kelas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nama_kelas VARCHAR(50) NOT NULL,
+    jurusan VARCHAR(100),
     wali_guru VARCHAR(30),
     FOREIGN KEY (wali_guru) REFERENCES guru(nip) ON DELETE SET NULL ON UPDATE CASCADE
 )");
+// Add column if not exists (for existing tables)
+$check_col = $conn->query("SHOW COLUMNS FROM kelas LIKE 'jurusan'");
+if ($check_col->num_rows == 0) {
+    $conn->query("ALTER TABLE kelas ADD COLUMN jurusan VARCHAR(100) AFTER nama_kelas");
+}
 
 $conn->query("CREATE TABLE IF NOT EXISTS kelas_mapel (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -35,7 +41,7 @@ $action = $_GET['action'] ?? 'list';
 if ($action == 'delete' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     $conn->query("DELETE FROM kelas WHERE id=$id");
-    $_SESSION['success'] = 'Data Kelas Berhasil Dihapus!';
+    $_SESSION['success'] = 'Data ' . LBL_KELAS . ' Berhasil Dihapus!';
     header("Location: kelas.php");
     exit;
 }
@@ -44,18 +50,19 @@ if ($action == 'remove_siswa' && isset($_GET['nis']) && isset($_GET['nama_kelas'
     $nis = $conn->real_escape_string($_GET['nis']);
     $nama_kelas = $conn->real_escape_string($_GET['nama_kelas']);
     $conn->query("UPDATE siswa SET kelas = '' WHERE nis = '$nis'");
-    $_SESSION['success'] = 'Siswa berhasil dikeluarkan dari kelas!';
+    $_SESSION['success'] = LBL_SISWA . ' berhasil dikeluarkan dari kelas!';
     header("Location: kelas.php?action=view&nama=" . urlencode($nama_kelas));
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nama_kelas = $conn->real_escape_string($_POST['nama_kelas']);
+    $jurusan = $conn->real_escape_string($_POST['jurusan']);
     $wali_guru = $conn->real_escape_string($_POST['wali_guru']);
     $mapel_ids = $_POST['mapel_ids'] ?? [];
 
     if ($action == 'add') {
-        $conn->query("INSERT INTO kelas (nama_kelas, wali_guru) VALUES ('$nama_kelas', '$wali_guru')");
+        $conn->query("INSERT INTO kelas (nama_kelas, jurusan, wali_guru) VALUES ('$nama_kelas', '$jurusan', '$wali_guru')");
         $new_id = $conn->insert_id;
         
         // Simpan Mapel
@@ -64,12 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $conn->query("INSERT INTO kelas_mapel (id_kelas, id_mapel) VALUES ($new_id, $m_id)");
         }
         
-        $_SESSION['success'] = 'Data Kelas Berhasil Ditambahkan!';
+        $_SESSION['success'] = 'Data ' . LBL_KELAS . ' Berhasil Ditambahkan!';
         header("Location: kelas.php");
         exit;
     } elseif ($action == 'edit') {
         $id = (int)$_POST['id'];
-        $conn->query("UPDATE kelas SET nama_kelas='$nama_kelas', wali_guru='$wali_guru' WHERE id=$id");
+        $conn->query("UPDATE kelas SET nama_kelas='$nama_kelas', jurusan='$jurusan', wali_guru='$wali_guru' WHERE id=$id");
         
         // Update Mapel: Hapus dulu yang lama, baru insert yang baru
         $conn->query("DELETE FROM kelas_mapel WHERE id_kelas=$id");
@@ -78,14 +85,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $conn->query("INSERT INTO kelas_mapel (id_kelas, id_mapel) VALUES ($id, $m_id)");
         }
         
-        $_SESSION['success'] = 'Data Kelas Berhasil Diperbarui!';
+        $_SESSION['success'] = 'Data ' . LBL_KELAS . ' Berhasil Diperbarui!';
         header("Location: kelas.php");
         exit;
     }
 }
 
-$page_title = 'Manajemen Kelas';
+$page_title = 'Manajemen ' . LBL_KELAS;
 include '../layouts/header.php'; 
+
+// Ambil data jurusan dari tabel jurusan
+$jur_res = $conn->query("SELECT nama_jurusan FROM jurusan ORDER BY nama_jurusan ASC");
+$jurusan_list = [];
+while($jr = $jur_res->fetch_assoc()) {
+    $jurusan_list[] = $jr['nama_jurusan'];
+}
+
 ?>
 
 <div class="container-fluid bg-transparent p-0">
@@ -93,15 +108,15 @@ include '../layouts/header.php';
         <!-- Header List -->
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-building-house text-primary me-2'></i> Manajemen Kelas</h3>
-                <p class="text-muted mb-0 small">Kelola daftar kelas dan wali kelas masing-masing.</p>
+                <h3 class="fw-bold mb-1 text-dark"><i class='bx bxs-building-house text-primary me-2'></i> Manajemen <?php echo LBL_KELAS; ?></h3>
+                <p class="text-muted mb-0 small">Kelola daftar <?php echo strtolower(LBL_KELAS); ?> dan wali <?php echo strtolower(LBL_KELAS); ?> masing-masing.</p>
             </div>
             <?php if ($role == 'admin'): ?>
             <a href="kelas.php?action=add" class="btn fw-bold rounded-3 px-4 shadow-sm text-white d-flex align-items-center justify-content-center" 
                style="background-color: #0f172a; border: none; transition: all 0.3s ease; height: 45px;" 
                onmouseover="this.style.backgroundColor='#8b5cf6'; this.style.transform='translateY(-2px)'" 
                onmouseout="this.style.backgroundColor='#0f172a'; this.style.transform='translateY(0)'">
-                <i class='bx bx-plus-circle me-2 fs-5'></i> Kelas Baru
+                <i class='bx bx-plus-circle me-2 fs-5'></i> Tambah Baru
             </a>
             <?php endif; ?>
         </div>
@@ -113,9 +128,10 @@ include '../layouts/header.php';
                     <thead class="table-light text-muted">
                         <tr>
                             <th class="fw-semibold pb-3" style="width: 50px;">No</th>
-                            <th class="fw-semibold pb-3">Nama Kelas</th>
-                            <th class="fw-semibold pb-3">Wali Kelas</th>
-                            <th class="fw-semibold pb-3 text-center">Jumlah Siswa</th>
+                            <th class="fw-semibold pb-3">Nama <?php echo LBL_KELAS; ?></th>
+                            <th class="fw-semibold pb-3">Jurusan</th>
+                            <th class="fw-semibold pb-3">Wali <?php echo LBL_KELAS; ?></th>
+                            <th class="fw-semibold pb-3 text-center">Jumlah <?php echo LBL_SISWA; ?></th>
                             <th class="fw-semibold pb-3 text-end">Aksi</th>
                         </tr>
                     </thead>
@@ -145,6 +161,9 @@ include '../layouts/header.php';
                                 </div>
                             </td>
                             <td>
+                                <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small"><?php echo $row['jurusan'] ?? '-'; ?></span>
+                            </td>
+                            <td>
                                 <div class="d-flex align-items-center">
                                     <?php if($row['foto_wali']): ?>
                                         <img src="../<?php echo $row['foto_wali']; ?>" width="30" height="30" class="rounded-circle me-2" style="object-fit:cover; border: 1px solid #eee;">
@@ -158,7 +177,7 @@ include '../layouts/header.php';
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-light text-primary border px-3 py-2 rounded-pill fw-bold">
-                                    <?php echo $row['total_siswa']; ?> Siswa
+                                    <?php echo $row['total_siswa']; ?> <?php echo LBL_SISWA; ?>
                                 </span>
                             </td>
                             <td class="text-end">
@@ -193,10 +212,10 @@ include '../layouts/header.php';
                                     ];
                                     $kelas_json = htmlspecialchars(json_encode($kelas_info), ENT_QUOTES, 'UTF-8');
                                     ?>
-                                    <button type="button" class="btn btn-link text-info p-0 text-decoration-none" title="Detail Kelas" data-kelas='<?php echo $kelas_json; ?>' onclick="showDetailKelas(this)">
+                                    <button type="button" class="btn btn-link text-info p-0 text-decoration-none" title="Detail <?php echo LBL_KELAS; ?>" data-kelas='<?php echo $kelas_json; ?>' onclick="showDetailKelas(this)">
                                         <i class='bx bx-show fs-4'></i>
                                     </button>
-                                    <a href="kelas.php?action=view&nama=<?php echo urlencode($row['nama_kelas']); ?>" class="btn btn-link text-primary p-0 text-decoration-none" title="Lihat Daftar Siswa">
+                                    <a href="kelas.php?action=view&nama=<?php echo urlencode($row['nama_kelas']); ?>" class="btn btn-link text-primary p-0 text-decoration-none" title="Lihat Daftar <?php echo LBL_SISWA; ?>">
                                         <i class='bx bx-group fs-4'></i>
                                     </a>
                                     <?php if ($role == 'admin'): ?>
@@ -224,8 +243,8 @@ include '../layouts/header.php';
               <div class="position-relative" style="height: 100px; background: linear-gradient(135deg, #4f46e5, #8b5cf6);">
                   <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2" data-bs-dismiss="modal" aria-label="Close"></button>
                   <div class="position-absolute bottom-0 start-0 w-100 p-3 text-white">
-                      <h4 class="fw-bold mb-0" id="detailNamaKelas">Nama Kelas</h4>
-                      <small class="opacity-75" id="detailTotalSiswa">0 Siswa Terdaftar</small>
+                      <h4 class="fw-bold mb-0" id="detailNamaKelas">Nama <?php echo LBL_KELAS; ?></h4>
+                      <small class="opacity-75" id="detailTotalSiswa">0 <?php echo LBL_SISWA; ?> Terdaftar</small>
                   </div>
                   <i class='bx bxs-school position-absolute' style="font-size: 5rem; color: rgba(255,255,255,0.1); right: -10px; bottom: -10px;"></i>
               </div>
@@ -241,7 +260,7 @@ include '../layouts/header.php';
                               </div>
                           </div>
                           <div class="overflow-hidden">
-                              <h6 class="fw-bold text-dark mb-0 text-truncate" id="detailNamaGuru">Nama Guru</h6>
+                              <h6 class="fw-bold text-dark mb-0 text-truncate" id="detailNamaGuru">Nama <?php echo LBL_GURU; ?></h6>
                               <small class="text-muted d-block mb-1">
                                   NIP: <span id="detailNipGuru" class="fw-bold text-dark">123</span>
                                   <button class="btn btn-link p-0 ms-1 text-primary" onclick="copyNipGuru()" title="Salin NIP">
@@ -271,12 +290,12 @@ include '../layouts/header.php';
 
                   <div id="sectionNoWali" class="text-center py-4 bg-light rounded-4 border border-dashed border-2 mb-2" style="display:none;">
                       <i class='bx bx-user-x fs-1 text-muted mb-1'></i>
-                      <p class="text-muted small mb-0">Belum ada Wali Kelas.</p>
+                      <p class="text-muted small mb-0">Belum ada Wali <?php echo strtolower(LBL_KELAS); ?>.</p>
                   </div>
 
                   <!-- Section Mata Pelajaran -->
                   <div class="mt-2">
-                      <h6 class="fw-bold text-muted small text-uppercase mb-2 px-1"><i class='bx bx-book-content me-1'></i> Mapel Kelas</h6>
+                      <h6 class="fw-bold text-muted small text-uppercase mb-2 px-1"><i class='bx bx-book-content me-1'></i> <?php echo LBL_MAPEL; ?> <?php echo LBL_KELAS; ?></h6>
                       <div id="listMapelKelas" class="d-flex flex-column gap-1 overflow-auto" style="max-height: 180px;">
                           <!-- Mapel list will be injected here -->
                       </div>
@@ -288,7 +307,7 @@ include '../layouts/header.php';
               
               <div class="modal-footer bg-light border-0 justify-content-center p-3">
                   <a id="btnLihatSiswa" href="#" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
-                      <i class='bx bx-group me-1'></i> Lihat Daftar Siswa
+                      <i class='bx bx-group me-1'></i> Lihat Daftar <?php echo LBL_SISWA; ?>
                   </a>
               </div>
             </div>
@@ -301,7 +320,7 @@ include '../layouts/header.php';
             
             // Fill Class Info
             document.getElementById('detailNamaKelas').innerText = data.nama_kelas;
-            document.getElementById('detailTotalSiswa').innerText = data.total_siswa + ' Siswa Terdaftar';
+            document.getElementById('detailTotalSiswa').innerText = data.total_siswa + ' <?php echo LBL_SISWA; ?> Terdaftar';
             document.getElementById('btnLihatSiswa').href = 'kelas.php?action=view&nama=' + encodeURIComponent(data.nama_kelas);
 
             if (data.guru) {
@@ -388,8 +407,8 @@ include '../layouts/header.php';
     ?>
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-group text-primary me-2'></i> Daftar Siswa Kelas <?php echo htmlspecialchars($nama_kelas); ?></h3>
-                <p class="text-muted mb-0 small">Menampilkan <?php echo $total; ?> siswa yang terdaftar di kelas ini.</p>
+                <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-group text-primary me-2'></i> Daftar <?php echo LBL_SISWA; ?> <?php echo LBL_KELAS; ?> <?php echo htmlspecialchars($nama_kelas); ?></h3>
+                <p class="text-muted mb-0 small">Menampilkan <?php echo $total; ?> <?php echo strtolower(LBL_SISWA); ?> yang terdaftar di kelas ini.</p>
             </div>
             <a href="kelas.php" class="btn btn-outline-secondary fw-medium rounded-3 px-4 shadow-sm">
                 <i class='bx bx-arrow-back me-1'></i> Kembali
@@ -402,7 +421,7 @@ include '../layouts/header.php';
                     <thead class="table-light text-muted">
                         <tr>
                             <th class="fw-semibold pb-3" style="width: 50px;">No</th>
-                            <th class="fw-semibold pb-3">Profil Siswa</th>
+                            <th class="fw-semibold pb-3">Profil <?php echo LBL_SISWA; ?></th>
                             <th class="fw-semibold pb-3">NIS</th>
                             <th class="fw-semibold pb-3 text-center">Status</th>
                             <th class="fw-semibold pb-3 text-end">Aksi</th>
@@ -440,7 +459,7 @@ include '../layouts/header.php';
                                     <button type="button" class="btn btn-link text-info p-0 text-decoration-none" title="Lihat Detail" data-siswa='<?php echo $siswa_json; ?>' onclick="showDetailSiswa(this)">
                                         <i class='bx bx-show fs-4'></i>
                                     </button>
-                                    <a href="kelas.php?action=remove_siswa&nis=<?php echo $s['nis']; ?>&nama_kelas=<?php echo urlencode($nama_kelas); ?>" class="btn btn-link text-danger p-0 text-decoration-none btn-delete" title="Keluarkan dari Kelas">
+                                    <a href="kelas.php?action=remove_siswa&nis=<?php echo $s['nis']; ?>&nama_kelas=<?php echo urlencode($nama_kelas); ?>" class="btn btn-link text-danger p-0 text-decoration-none btn-delete" title="Keluarkan dari <?php echo LBL_KELAS; ?>">
                                         <i class='bx bx-user-x fs-4'></i>
                                     </a>
                                 </div>
@@ -449,7 +468,7 @@ include '../layouts/header.php';
                         <?php endwhile; ?>
                         <?php if($total == 0): ?>
                         <tr>
-                            <td colspan="5" class="text-center py-5 text-muted italic">Belum ada siswa yang terdaftar di kelas ini.</td>
+                            <td colspan="5" class="text-center py-5 text-muted italic">Belum ada <?php echo strtolower(LBL_SISWA); ?> yang terdaftar di kelas ini.</td>
                         </tr>
                         <?php endif; ?>
                     </tbody>
@@ -492,7 +511,7 @@ include '../layouts/header.php';
                             </div>
                         </div>
 
-                        <h5 class="fw-bold text-dark mb-1" id="detailNama">Nama Lengkap Siswa</h5>
+                        <h5 class="fw-bold text-dark mb-1" id="detailNama">Nama Lengkap <?php echo LBL_SISWA; ?></h5>
                         <p class="text-muted mb-2" style="font-size: 0.85rem;">
                             <i class='bx bx-id-card me-1'></i> NIS: <span class="fw-bold text-dark"
                                 id="detailNis">12345</span>
@@ -595,7 +614,7 @@ include '../layouts/header.php';
     ?>
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-edit text-primary me-2'></i> <?php echo $action == 'add' ? 'Tambah Kelas Baru' : 'Edit Data Kelas'; ?></h3>
+                <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-edit text-primary me-2'></i> <?php echo $action == 'add' ? 'Tambah ' . LBL_KELAS . ' Baru' : 'Edit Data ' . LBL_KELAS; ?></h3>
                 <p class="text-muted mb-0 small">Masukkan nama kelas dan pilih wali kelas yang bertanggung jawab.</p>
             </div>
             <a href="kelas.php" class="btn btn-outline-secondary fw-medium rounded-3 px-4 shadow-sm">
@@ -609,16 +628,25 @@ include '../layouts/header.php';
             <?php endif; ?>
             
             <div class="bg-white p-4 p-lg-5 rounded-4 border shadow-sm">
-                <h5 class="fw-bold text-dark mb-4 pb-2 border-bottom"><i class='bx bx-home-alt text-primary me-2'></i> Konfigurasi Kelas</h5>
+                <h5 class="fw-bold text-dark mb-4 pb-2 border-bottom"><i class='bx bx-home-alt text-primary me-2'></i> Konfigurasi <?php echo LBL_KELAS; ?></h5>
                 <div class="row g-4 mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-medium text-muted">Nama Kelas</label>
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Nama <?php echo LBL_KELAS; ?></label>
                         <input type="text" name="nama_kelas" class="form-control form-control-lg shadow-xs" value="<?php echo $row['nama_kelas'] ?? ''; ?>" placeholder="Contoh: X-IPA-1 atau 10-A" required>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-medium text-muted">Wali Kelas</label>
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Jurusan</label>
+                        <select name="jurusan" id="selectJurusan" class="form-select form-select-lg shadow-xs" required onchange="filterMapel()">
+                            <option value="">-- Pilih Jurusan --</option>
+                            <?php foreach($jurusan_list as $jur): ?>
+                                <option value="<?php echo $jur; ?>" <?php echo (isset($row['jurusan']) && $row['jurusan'] == $jur) ? 'selected' : ''; ?>><?php echo $jur; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-medium text-muted">Wali <?php echo LBL_KELAS; ?></label>
                         <select name="wali_guru" class="form-select form-select-lg shadow-xs" required>
-                            <option value="">-- Pilih Wali Kelas --</option>
+                            <option value="">-- Pilih Wali <?php echo LBL_KELAS; ?> --</option>
                             <?php while ($g = $guru_result->fetch_assoc()): ?>
                                 <option value="<?php echo $g['nip']; ?>" <?php echo (isset($row['wali_guru']) && $row['wali_guru'] == $g['nip']) ? 'selected' : ''; ?>>
                                     <?php echo $g['nama']; ?> (<?php echo $g['nip']; ?>)
@@ -630,7 +658,7 @@ include '../layouts/header.php';
 
                 <div class="mb-4">
                     <label class="form-label fw-medium text-muted d-block mb-3">
-                        <i class='bx bx-book-open text-primary me-1'></i> Pilih Mata Pelajaran untuk Kelas Ini
+                        <i class='bx bx-book-open text-primary me-1'></i> Pilih <?php echo LBL_MAPEL; ?> untuk <?php echo LBL_KELAS; ?> Ini
                     </label>
                     <div class="row g-3">
                         <?php 
@@ -645,7 +673,7 @@ include '../layouts/header.php';
                         
                         while($m = $all_mapel->fetch_assoc()): 
                         ?>
-                        <div class="col-md-4 col-lg-3">
+                        <div class="col-md-4 col-lg-3 mapel-item" data-jurusan="<?php echo htmlspecialchars($m['jurusan'] ?? ''); ?>">
                             <div class="p-3 border rounded-4 transition-all shadow-hover h-100 d-flex align-items-center">
                                 <div class="form-check mb-0">
                                     <input class="form-check-input" type="checkbox" name="mapel_ids[]" 
@@ -661,10 +689,36 @@ include '../layouts/header.php';
                     </div>
                 </div>
 
+                <script>
+                function filterMapel() {
+                    var selectedJurusan = document.getElementById('selectJurusan').value;
+                    var mapelItems = document.querySelectorAll('.mapel-item');
+                    
+                    mapelItems.forEach(function(item) {
+                        var mapelJurusan = item.getAttribute('data-jurusan');
+                        // Tampilkan jika jurusan sama, atau jika belum ada mapel jurusan yg spesifik (opsional)
+                        // Disini kita strict hanya muncul jika sama dengan jurusan yang dipilih
+                        if (mapelJurusan === selectedJurusan || selectedJurusan === '') {
+                            item.style.display = 'block';
+                        } else {
+                            item.style.display = 'none';
+                            // Uncheck if hidden
+                            var checkbox = item.querySelector('input[type="checkbox"]');
+                            if(checkbox) checkbox.checked = false;
+                        }
+                    });
+                }
+                
+                // Run on load to filter initial view if editing
+                document.addEventListener('DOMContentLoaded', function() {
+                    filterMapel();
+                });
+                </script>
+
                 <div class="d-flex flex-column flex-md-row justify-content-end gap-2 pt-3 border-top">
                     <a href="kelas.php" class="btn btn-light border px-4 py-2 fw-medium text-muted">Batal</a>
                     <button type="submit" class="btn px-4 py-2 fw-medium text-white shadow-sm" style="background-color: #0f172a; transition: all 0.3s;" onmouseover="this.style.backgroundColor='#8b5cf6'" onmouseout="this.style.backgroundColor='#0f172a'">
-                        <i class='bx bx-save me-1'></i> Simpan Data Kelas
+                        <i class='bx bx-save me-1'></i> Simpan Data <?php echo LBL_KELAS; ?>
                     </button>
                 </div>
             </div>

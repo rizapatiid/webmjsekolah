@@ -18,20 +18,47 @@ if (isset($_SESSION['user']['role']) && $_SESSION['user']['role'] != 'admin') {
 
 include '../config/db.php';
 
+// AJAX Handler for Jurusan
+if (isset($_POST['ajax_add_jurusan'])) {
+    $nama = $conn->real_escape_string($_POST['nama_jurusan']);
+    $kaprodi = $conn->real_escape_string($_POST['kaprodi']);
+    $conn->query("INSERT INTO jurusan (nama_jurusan, kaprodi) VALUES ('$nama', '$kaprodi')");
+    echo json_encode(['success' => true, 'id' => $conn->insert_id]);
+    exit;
+}
+if (isset($_POST['ajax_delete_jurusan'])) {
+    $id = (int)$_POST['id'];
+    $conn->query("DELETE FROM jurusan WHERE id=$id");
+    echo json_encode(['success' => true]);
+    exit;
+}
+
 // Ensure column exists
 $conn->query("ALTER TABLE pengaturan_sekolah ADD COLUMN IF NOT EXISTS daftar_tahun_ajaran TEXT");
 $conn->query("ALTER TABLE pengaturan_sekolah ADD COLUMN IF NOT EXISTS logo VARCHAR(255)");
+$conn->query("ALTER TABLE pengaturan_sekolah ADD COLUMN IF NOT EXISTS nip_kepala VARCHAR(50)");
+$conn->query("ALTER TABLE pengaturan_sekolah ADD COLUMN IF NOT EXISTS nama_dekan VARCHAR(100)");
+$conn->query("ALTER TABLE pengaturan_sekolah ADD COLUMN IF NOT EXISTS nip_dekan VARCHAR(50)");
+$conn->query("ALTER TABLE pengaturan_sekolah ADD COLUMN IF NOT EXISTS nama_yayasan VARCHAR(255) DEFAULT 'YAYASAN PENDIDIKAN DAN SOSIAL RMP GROUP INDONESIA'");
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nama_sekolah = $conn->real_escape_string($_POST['nama_sekolah']);
     $tahun_ajaran = $conn->real_escape_string($_POST['tahun_ajaran']);
     $daftar_tahun_ajaran = $conn->real_escape_string($_POST['daftar_tahun_ajaran']);
     $semester = $conn->real_escape_string($_POST['semester']);
-    $daftar_jurusan = $conn->real_escape_string($_POST['daftar_jurusan']);
     $kepala_sekolah = $conn->real_escape_string($_POST['kepala_sekolah']);
     $email = $conn->real_escape_string($_POST['email']);
     $telepon = $conn->real_escape_string($_POST['telepon']);
     $alamat = $conn->real_escape_string($_POST['alamat']);
+    $nip_kepala = $conn->real_escape_string($_POST['nip_kepala']);
+    $nama_yayasan = $conn->real_escape_string($_POST['nama_yayasan']);
+    $tipe_instansi = $conn->real_escape_string($_POST['tipe_instansi'] ?? 'Sekolah');
+
+    // Sync daftar_jurusan from the new table for backward compatibility
+    $j_res = $conn->query("SELECT nama_jurusan FROM jurusan ORDER BY nama_jurusan ASC");
+    $j_names = [];
+    while($jr = $j_res->fetch_assoc()) $j_names[] = $jr['nama_jurusan'];
+    $daftar_jurusan = $conn->real_escape_string(implode(', ', $j_names));
     
     // Handle Logo Upload
     $logo_query = "";
@@ -50,20 +77,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     $query = "UPDATE pengaturan_sekolah SET 
+              tipe_instansi='$tipe_instansi',
               nama_sekolah='$nama_sekolah', 
               tahun_ajaran='$tahun_ajaran', 
               daftar_tahun_ajaran='$daftar_tahun_ajaran', 
               semester='$semester', 
               daftar_jurusan='$daftar_jurusan', 
               kepala_sekolah='$kepala_sekolah', 
+              nip_kepala='$nip_kepala',
               email='$email', 
               telepon='$telepon', 
-              alamat='$alamat' 
+              alamat='$alamat',
+              nama_yayasan='$nama_yayasan' 
               $logo_query
               WHERE id=1";
               
     if ($conn->query($query)) {
-        $_SESSION['success'] = 'Pengaturan Sekolah berhasil diperbarui!';
+        $_SESSION['success'] = 'Pengaturan ' . LBL_INSTANSI . ' berhasil diperbarui!';
     } else {
         $_SESSION['error'] = 'Gagal menyimpan pengaturan.';
     }
@@ -83,15 +113,15 @@ if(empty($p['daftar_tahun_ajaran'])) {
 
 $tahun_list = array_map('trim', explode(',', $p['daftar_tahun_ajaran']));
 
-$page_title = 'Pengaturan Sekolah';
+$page_title = 'Pengaturan Instansi';
 include '../layouts/header.php'; 
 ?>
 
 <div class="container-fluid bg-transparent p-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-cog text-secondary me-2'></i> Pengaturan Sekolah</h3>
-            <p class="text-muted mb-0">Kelola informasi dasar, tahun akademik, dan program studi.</p>
+            <h3 class="fw-bold mb-1 text-dark"><i class='bx bx-cog text-secondary me-2'></i> Pengaturan Instansi</h3>
+            <p class="text-muted mb-0">Kelola informasi dasar, tahun akademik, program studi, dan jenis instansi.</p>
         </div>
     </div>
 
@@ -135,20 +165,24 @@ include '../layouts/header.php';
                         <div class="col-12 mb-3">
                             <label class="form-label fw-medium text-muted">Daftar Jurusan / Program Studi</label>
                             
-                            <!-- Hidden input -->
-                            <input type="hidden" name="daftar_jurusan" id="hiddenJurusan" value="<?php echo htmlspecialchars($p['daftar_jurusan']); ?>">
-                            
                             <!-- Input Add -->
-                            <div class="input-group mb-3">
-                                <input type="text" id="inputNewJurusan" class="form-control" placeholder="Ketik nama jurusan baru (misal: IPA)..." onkeypress="if(event.key === 'Enter') { event.preventDefault(); addJurusan(); }">
-                                <button type="button" class="btn btn-outline-primary fw-medium px-4" onclick="addJurusan()"><i class='bx bx-plus me-1'></i> Tambah</button>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    <input type="text" id="inputNewJurusan" class="form-control shadow-sm" placeholder="Nama Program Studi (misal: TEKNIK INFORMATIKA)">
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="input-group shadow-sm">
+                                        <input type="text" id="inputNewKaprodi" class="form-control" placeholder="Nama KAPRODI">
+                                        <button type="button" class="btn btn-primary fw-medium px-4" onclick="addJurusan()"><i class='bx bx-plus me-1'></i> Tambah</button>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- List -->
-                            <ul class="list-group" id="listJurusan" style="max-height: 200px; overflow-y: auto;">
+                            <ul class="list-group shadow-sm" id="listJurusan" style="max-height: 300px; overflow-y: auto;">
                                 <!-- Item list will be rendered by JS -->
                             </ul>
-                            <small class="text-muted d-block mt-2"><i class='bx bx-info-circle'></i> Jurusan yang ada di daftar ini bisa dipilih saat menambah data Siswa.</small>
+                            <small class="text-muted d-block mt-2"><i class='bx bx-info-circle'></i> Jurusan yang ada di daftar ini akan muncul saat registrasi <?php echo LBL_SISWA; ?>.</small>
                         </div>
                     </div>
                 </div>
@@ -171,20 +205,38 @@ include '../layouts/header.php';
                             </div>
                         </div>
                         <div class="col-md-9">
-                            <label class="form-label fw-medium text-muted">Ganti Logo Sekolah</label>
+                            <label class="form-label fw-medium text-muted">Ganti Logo <?php echo LBL_INSTANSI; ?></label>
                             <input type="file" name="logo" class="form-control" accept="image/*">
                             <small class="text-muted mt-1 d-block"><i class='bx bx-info-circle'></i> Gunakan file gambar (PNG/JPG) dengan latar belakang transparan/putih untuk hasil terbaik di laporan.</small>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-medium text-muted">Nama Sekolah / Instansi</label>
+                        <label class="form-label fw-medium text-muted">Tipe Instansi</label>
+                        <select name="tipe_instansi" class="form-select" required>
+                            <option value="Sekolah" <?php echo ($p['tipe_instansi'] == 'Sekolah') ? 'selected' : ''; ?>>Sekolah (Siswa & Guru)</option>
+                            <option value="Kampus" <?php echo ($p['tipe_instansi'] == 'Kampus') ? 'selected' : ''; ?>>Kampus (Mahasiswa & Dosen)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium text-muted">Nama Instansi (KAMPUS / SEKOLAH)</label>
                         <input type="text" name="nama_sekolah" class="form-control" value="<?php echo $p['nama_sekolah']; ?>" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-medium text-muted">Nama Kepala Sekolah</label>
-                        <input type="text" name="kepala_sekolah" class="form-control" value="<?php echo $p['kepala_sekolah']; ?>" required>
+                        <label class="form-label fw-medium text-muted">Nama Yayasan / Kementerian / Dinas (KOP Baris 2)</label>
+                        <input type="text" name="nama_yayasan" class="form-control" value="<?php echo $p['nama_yayasan'] ?? 'YAYASAN PENDIDIKAN DAN SOSIAL RMP GROUP INDONESIA'; ?>" placeholder="Contoh: YAYASAN PENDIDIKAN ...">
                     </div>
+                    <div class="row g-4 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium text-muted">Nama <?php echo LBL_INSTANSI == 'Kampus' ? 'Rektor' : 'Kepala Sekolah'; ?></label>
+                            <input type="text" name="kepala_sekolah" class="form-control" value="<?php echo $p['kepala_sekolah']; ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium text-muted">NIP / NIDN</label>
+                            <input type="text" name="nip_kepala" class="form-control" value="<?php echo $p['nip_kepala'] ?? ''; ?>">
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-medium text-muted">Alamat Lengkap</label>
                         <textarea name="alamat" class="form-control" rows="3" required><?php echo $p['alamat']; ?></textarea>
@@ -195,7 +247,7 @@ include '../layouts/header.php';
             <!-- Kolom Kanan: Kontak & Simpan -->
             <div class="col-12 col-lg-4">
                 <div class="bg-white p-4 rounded-4 border shadow-sm mb-4">
-                    <h5 class="fw-bold text-dark mb-4 pb-2 border-bottom"><i class='bx bx-phone-call text-success me-2'></i> Kontak Sekolah</h5>
+                    <h5 class="fw-bold text-dark mb-4 pb-2 border-bottom"><i class='bx bx-phone-call text-success me-2'></i> Kontak <?php echo LBL_INSTANSI; ?></h5>
                     
                     <div class="mb-3">
                         <label class="form-label fw-medium text-muted">Email Resmi</label>
@@ -221,11 +273,16 @@ include '../layouts/header.php';
 </div>
 
 <script>
-let jurusanArray = document.getElementById('hiddenJurusan').value.split(',').map(j => j.trim()).filter(j => j !== '');
-let tahunArray = document.getElementById('hiddenTahun').value.split(',').map(t => t.trim()).filter(t => t !== '');
+const tahunArray = <?php echo json_encode($tahun_list); ?>;
+let jurusanArray = <?php 
+    $j_res = $conn->query("SELECT * FROM jurusan ORDER BY nama_jurusan ASC");
+    $j_list = [];
+    while($j_row = $j_res->fetch_assoc()) $j_list[] = $j_row;
+    echo json_encode($j_list); 
+?>;
 let activeTahun = "<?php echo $p['tahun_ajaran']; ?>";
-
 let isModified = false;
+let isJurusanModified = false;
 
 function renderTahun() {
     const list = document.getElementById('listTahun');
@@ -290,57 +347,56 @@ function renderJurusan() {
     } else {
         jurusanArray.forEach((jurusan, index) => {
             list.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between align-items-center bg-light border-0 mb-2 rounded-3">
-                    <span class="fw-medium text-dark"><i class='bx bxs-graduation text-primary me-2'></i> ${jurusan}</span>
-                    <button type="button" class="btn btn-sm btn-light text-danger border-0 hover-danger" onclick="removeJurusan(${index})" title="Hapus Jurusan">
+                <li class="list-group-item d-flex justify-content-between align-items-center bg-white border-bottom py-3">
+                    <div>
+                        <span class="fw-bold text-dark d-block mb-1"><i class='bx bxs-graduation text-primary me-2'></i> ${jurusan.nama_jurusan}</span>
+                        <small class="text-muted"><i class='bx bx-user-circle me-1'></i> KAPRODI: <span class="fw-medium text-secondary">${jurusan.kaprodi || '-'}</span></small>
+                    </div>
+                    <button type="button" class="btn btn-link text-danger p-0 border-0" onclick="removeJurusan(${index}, ${jurusan.id || 0})" title="Hapus Jurusan">
                         <i class='bx bx-trash fs-5'></i>
                     </button>
                 </li>
             `;
         });
     }
-    
-    // Update hidden input for PHP POST
-    document.getElementById('hiddenJurusan').value = jurusanArray.join(', ');
+}
 
-    // Show warning if user modified the list but hasn't saved
-    if(isJurusanModified) {
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'info',
-            title: 'Jangan lupa klik tombol "Simpan Pengaturan" di bawah agar jurusan tersimpan!',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true
+function addJurusan() {
+    const inputJ = document.getElementById('inputNewJurusan');
+    const inputK = document.getElementById('inputNewKaprodi');
+    const valJ = inputJ.value.trim();
+    const valK = inputK.value.trim();
+    
+    if(valJ !== '') {
+        // Use AJAX to save to database immediately to keep it simple and synced
+        const formData = new FormData();
+        formData.append('nama_jurusan', valJ);
+        formData.append('kaprodi', valK);
+        formData.append('ajax_add_jurusan', '1');
+
+        fetch('pengaturan.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                jurusanArray.push({ id: data.id, nama_jurusan: valJ, kaprodi: valK });
+                inputJ.value = '';
+                inputK.value = '';
+                renderJurusan();
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Berhasil ditambahkan', showConfirmButton: false, timer: 1500 });
+            } else {
+                Swal.fire('Error', data.message || 'Gagal menambahkan jurusan', 'error');
+            }
         });
     }
 }
 
-function addJurusan() {
-    const input = document.getElementById('inputNewJurusan');
-    const val = input.value.trim();
-    if(val !== '') {
-        // Prevent duplicate
-        if (!jurusanArray.map(j => j.toLowerCase()).includes(val.toLowerCase())) {
-            jurusanArray.push(val);
-            input.value = '';
-            isJurusanModified = true;
-            renderJurusan();
-        } else {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Duplikat',
-                text: 'Jurusan tersebut sudah ada di daftar!'
-            });
-        }
-    }
-}
-
-function removeJurusan(index) {
+function removeJurusan(index, id) {
     Swal.fire({
         title: 'Hapus Jurusan?',
-        text: "Data akan dihapus dari daftar ini.",
+        text: "Data akan dihapus permanen.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc3545',
@@ -349,9 +405,22 @@ function removeJurusan(index) {
         cancelButtonText: 'Batal'
     }).then((result) => {
         if (result.isConfirmed) {
-            jurusanArray.splice(index, 1);
-            isJurusanModified = true;
-            renderJurusan();
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('ajax_delete_jurusan', '1');
+
+            fetch('pengaturan.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    jurusanArray.splice(index, 1);
+                    renderJurusan();
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Berhasil dihapus', showConfirmButton: false, timer: 1500 });
+                }
+            });
         }
     });
 }
